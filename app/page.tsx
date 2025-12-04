@@ -20,7 +20,7 @@ export default function Home() {
         </div>
 
         {/* 메뉴 버튼 */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Link
             href="/login"
             className="block w-full bg-[#FEE500] text-[#000000] text-center text-lg py-4 rounded-xl shadow-md hover:bg-[#FDD835] transition-all font-medium"
@@ -37,15 +37,23 @@ export default function Home() {
             href="/reserve"
             className="block w-full btn-primary text-center text-lg py-4 rounded-xl shadow-md hover:shadow-lg transition-shadow"
           >
-            비회원 예약하기
+            예약하기
           </Link>
-          
-          <Link
-            href="/reserve/lookup"
-            className="block w-full btn-secondary text-center text-lg py-4 rounded-xl"
-          >
-            예약 조회 / 취소
-          </Link>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              href="/mypage"
+              className="block w-full btn-secondary text-center py-3 rounded-xl"
+            >
+              마이페이지
+            </Link>
+            <Link
+              href="/reserve/lookup"
+              className="block w-full btn-secondary text-center py-3 rounded-xl"
+            >
+              예약 조회
+            </Link>
+          </div>
         </div>
 
         {/* 안내 문구 */}
