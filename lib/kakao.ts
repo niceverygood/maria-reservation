@@ -15,7 +15,7 @@ export function getKakaoLoginUrl(): string {
     client_id: KAKAO_CONFIG.clientId,
     redirect_uri: KAKAO_CONFIG.redirectUri,
     response_type: 'code',
-    scope: 'profile_nickname profile_image account_email',
+    scope: 'profile_nickname profile_image',
   })
   
   return `https://kauth.kakao.com/oauth/authorize?${params.toString()}`
