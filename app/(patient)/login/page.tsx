@@ -38,13 +38,16 @@ function LoginContent() {
   // URL 에러 파라미터 처리
   useEffect(() => {
     const errorParam = searchParams.get('error')
+    const reasonParam = searchParams.get('reason')
+
     if (errorParam) {
+      const reasonSuffix = reasonParam ? ` (사유: ${reasonParam})` : ''
       switch (errorParam) {
         case 'kakao_denied':
           setError('카카오 로그인이 취소되었습니다.')
           break
         case 'callback_failed':
-          setError('로그인 처리 중 오류가 발생했습니다.')
+          setError(`로그인 처리 중 오류가 발생했습니다.${reasonSuffix}`)
           break
         default:
           setError('로그인에 실패했습니다.')

@@ -86,7 +86,15 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/reserve', request.url))
   } catch (error) {
     console.error('카카오 로그인 콜백 오류:', error)
-    return NextResponse.redirect(new URL('/login?error=callback_failed', request.url))
+    const message =
+      error instanceof Error ? error.message : typeof error === 'string' ? error : 'unknown'
+    console.error('카카오 로그인 콜백 오류:', message, error)
+
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('error', 'callback_failed')
+    redirectUrl.searchParams.set('reason', message.slice(0, 200))
+
+    return NextResponse.redirect(redirectUrl)
   }
 }
 
