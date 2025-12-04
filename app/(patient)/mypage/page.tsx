@@ -17,11 +17,11 @@ interface Appointment {
 }
 
 interface PatientInfo {
-  patientId: string
+  id: string
   name: string
-  birthDate: string
-  phone: string
-  kakaoId?: string
+  birthDate: string | null
+  phone: string | null
+  kakaoId?: string | null
 }
 
 // 병원 전화번호
@@ -43,12 +43,19 @@ export default function MyPage() {
         const res = await fetch('/api/auth/me')
         const data = await res.json()
         
-        if (!data.success) {
+        if (!data.success || !data.patient) {
           router.push('/login?redirect=/mypage')
           return
         }
         
         setPatient(data.patient)
+        
+        // 프로필이 완성되지 않았으면 프로필 완성 페이지로
+        if (!data.isProfileComplete) {
+          router.push('/login/complete-profile')
+          return
+        }
+        
         await fetchAppointments(data.patient)
       } catch {
         router.push('/login?redirect=/mypage')
@@ -61,6 +68,10 @@ export default function MyPage() {
 
   // 예약 목록 조회
   const fetchAppointments = async (patientInfo: PatientInfo) => {
+    if (!patientInfo.name || !patientInfo.birthDate || !patientInfo.phone) {
+      return
+    }
+    
     try {
       const res = await fetch('/api/patient/appointments/list', {
         method: 'POST',
@@ -82,7 +93,7 @@ export default function MyPage() {
 
   // 예약 취소
   const handleCancel = async (appointmentId: string) => {
-    if (!patient) return
+    if (!patient || !patient.name || !patient.birthDate || !patient.phone) return
     if (!confirm('정말 이 예약을 취소하시겠습니까?')) return
 
     setCancellingId(appointmentId)
@@ -188,6 +199,14 @@ export default function MyPage() {
     )
   }
 
+  if (!patient) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-[#64748B]">로그인이 필요합니다.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-gradient-to-b from-[#E8F4FD] to-white min-h-screen">
       <div className="px-4 py-6">
@@ -196,14 +215,14 @@ export default function MyPage() {
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-[#0066CC] rounded-full flex items-center justify-center">
               <span className="text-xl text-white font-bold">
-                {patient?.name?.charAt(0) || '?'}
+                {patient.name?.charAt(0) || '?'}
               </span>
             </div>
             <div className="flex-1">
               <h1 className="text-lg font-bold text-[#1E293B]">
-                {patient?.name}님
+                {patient.name || '사용자'}님
               </h1>
-              {patient?.kakaoId && (
+              {patient.kakaoId && (
                 <div className="flex items-center gap-1 mt-0.5">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="#FEE500">
                     <path d="M12 3C6.48 3 2 6.58 2 11c0 2.83 1.88 5.31 4.69 6.74l-.97 3.6c-.05.19.01.39.16.5.09.07.2.1.31.1.08 0 .16-.02.24-.06l4.25-2.83c.44.04.88.06 1.32.06 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
@@ -314,7 +333,7 @@ export default function MyPage() {
                           {formatDate(apt.date)} {apt.time}
                         </p>
                         <p className="text-sm text-[#64748B]">
-                          {apt.doctor.name} 선생님 · {apt.doctor.department}
+                          {apt.doctor?.name || '담당의'} 선생님 · {apt.doctor?.department || '진료과'}
                         </p>
                       </div>
                       {getStatusBadge(apt.status)}
@@ -341,7 +360,7 @@ export default function MyPage() {
                           {formatDate(apt.date)} {apt.time}
                         </p>
                         <p className="text-sm text-[#94A3B8]">
-                          {apt.doctor.name} 선생님 · {apt.doctor.department}
+                          {apt.doctor?.name || '담당의'} 선생님 · {apt.doctor?.department || '진료과'}
                         </p>
                       </div>
                       {getStatusBadge(apt.status)}
@@ -375,8 +394,15 @@ export default function MyPage() {
 
       {/* 예약 상세 모달 */}
       {selectedAppointment && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-          <div className="bg-white w-full max-w-lg rounded-t-2xl animate-slide-up">
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+          onClick={() => setSelectedAppointment(null)}
+        >
+          <div 
+            className="bg-white w-full max-w-lg rounded-t-2xl"
+            onClick={(e) => e.stopPropagation()}
+            style={{ animation: 'slideUp 0.3s ease-out' }}
+          >
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-[#1E293B]">예약 상세</h3>
@@ -424,9 +450,9 @@ export default function MyPage() {
                   <div>
                     <p className="text-sm text-[#64748B]">담당 의사</p>
                     <p className="font-semibold text-[#1E293B]">
-                      {selectedAppointment.doctor.name} 선생님
+                      {selectedAppointment.doctor?.name || '담당의'} 선생님
                     </p>
-                    <p className="text-sm text-[#64748B]">{selectedAppointment.doctor.department}</p>
+                    <p className="text-sm text-[#64748B]">{selectedAppointment.doctor?.department || '진료과'}</p>
                   </div>
                 </div>
               </div>
@@ -471,17 +497,14 @@ export default function MyPage() {
         </div>
       )}
 
-      <style jsx>{`
-        @keyframes slide-up {
+      <style jsx global>{`
+        @keyframes slideUp {
           from {
             transform: translateY(100%);
           }
           to {
             transform: translateY(0);
           }
-        }
-        .animate-slide-up {
-          animation: slide-up 0.3s ease-out;
         }
       `}</style>
     </div>
