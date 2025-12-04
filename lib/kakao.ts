@@ -32,10 +32,13 @@ export async function getKakaoToken(code: string): Promise<{
   const params = new URLSearchParams({
     grant_type: 'authorization_code',
     client_id: KAKAO_CONFIG.clientId,
-    client_secret: KAKAO_CONFIG.clientSecret,
     redirect_uri: KAKAO_CONFIG.redirectUri,
     code,
   })
+
+  if (KAKAO_CONFIG.clientSecret) {
+    params.set('client_secret', KAKAO_CONFIG.clientSecret)
+  }
 
   const response = await fetch('https://kauth.kakao.com/oauth/token', {
     method: 'POST',
