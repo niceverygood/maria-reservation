@@ -22,10 +22,22 @@ export default function Home() {
         {/* 메뉴 버튼 */}
         <div className="space-y-4">
           <Link
+            href="/login"
+            className="block w-full bg-[#FEE500] text-[#000000] text-center text-lg py-4 rounded-xl shadow-md hover:bg-[#FDD835] transition-all font-medium"
+          >
+            <span className="flex items-center justify-center gap-2">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 3C6.48 3 2 6.58 2 11c0 2.83 1.88 5.31 4.69 6.74l-.97 3.6c-.05.19.01.39.16.5.09.07.2.1.31.1.08 0 .16-.02.24-.06l4.25-2.83c.44.04.88.06 1.32.06 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
+              </svg>
+              카카오로 시작하기
+            </span>
+          </Link>
+          
+          <Link
             href="/reserve"
             className="block w-full btn-primary text-center text-lg py-4 rounded-xl shadow-md hover:shadow-lg transition-shadow"
           >
-            예약하기
+            비회원 예약하기
           </Link>
           
           <Link

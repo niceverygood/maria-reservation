@@ -72,13 +72,19 @@ model ScheduleException {
 
 // ============================================
 // 환자 (Patient)
-// - 이름 + 생년월일 + 전화번호로 식별
+// - 카카오 로그인 또는 이름+생년월일+전화번호로 식별
 // ============================================
 model Patient {
   id        String   @id @default(cuid())
   name      String
-  birthDate String   // "19900101" (YYYYMMDD)
-  phone     String   // "01012345678"
+  birthDate String?  // "19900101" (YYYYMMDD) - 카카오 로그인 시 null 가능
+  phone     String?  // "01012345678" - 카카오 로그인 시 null 가능
+  
+  // 카카오 로그인 연동
+  kakaoId       String?  @unique // 카카오 고유 ID
+  kakaoEmail    String?  // 카카오 이메일
+  kakaoProfile  String?  // 카카오 프로필 이미지 URL
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
