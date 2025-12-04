@@ -95,7 +95,6 @@ export default function MyPage() {
       const data = await res.json()
       
       if (data.success) {
-        // 예약 목록 새로고침
         await fetchAppointments(patient)
         alert('예약이 취소되었습니다.')
       } else {
@@ -153,30 +152,15 @@ export default function MyPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#E8F4FD] to-white">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="inline-block w-8 h-8 border-4 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E8F4FD] to-white">
-      {/* 헤더 */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold text-[#0066CC]">
-            일산마리아병원
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-[#94A3B8] hover:text-[#64748B]"
-          >
-            로그아웃
-          </button>
-        </div>
-      </header>
-
-      <div className="max-w-lg mx-auto px-4 py-6">
+    <div className="bg-gradient-to-b from-[#E8F4FD] to-white min-h-screen">
+      <div className="px-4 py-6">
         {/* 프로필 카드 */}
         <div className="card mb-6">
           <div className="flex items-center gap-4">
@@ -201,6 +185,12 @@ export default function MyPage() {
                 {patient?.phone?.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3')}
               </p>
             </div>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-[#94A3B8] hover:text-red-500 transition-colors"
+            >
+              로그아웃
+            </button>
           </div>
 
           <div className="mt-4 pt-4 border-t border-gray-100">
@@ -211,32 +201,6 @@ export default function MyPage() {
               프로필 수정 →
             </Link>
           </div>
-        </div>
-
-        {/* 빠른 메뉴 */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <Link
-            href="/reserve"
-            className="card text-center py-4 hover:border-[#0066CC] hover:bg-[#E8F4FD] transition-all"
-          >
-            <div className="w-10 h-10 mx-auto bg-[#E8F4FD] rounded-full flex items-center justify-center mb-2">
-              <svg className="w-5 h-5 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <p className="text-sm font-medium text-[#1E293B]">새 예약하기</p>
-          </Link>
-          <Link
-            href="/reserve/lookup"
-            className="card text-center py-4 hover:border-[#0066CC] hover:bg-[#E8F4FD] transition-all"
-          >
-            <div className="w-10 h-10 mx-auto bg-[#E8F4FD] rounded-full flex items-center justify-center mb-2">
-              <svg className="w-5 h-5 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <p className="text-sm font-medium text-[#1E293B]">예약 조회</p>
-          </Link>
         </div>
 
         {/* 예약 목록 */}
@@ -326,15 +290,7 @@ export default function MyPage() {
             )}
           </div>
         </div>
-
-        {/* 하단 메뉴 */}
-        <div className="mt-6 text-center space-y-2">
-          <Link href="/" className="block text-sm text-[#64748B] hover:text-[#1E293B]">
-            홈으로 돌아가기
-          </Link>
-        </div>
       </div>
     </div>
   )
 }
-

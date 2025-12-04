@@ -241,35 +241,8 @@ export default function ReservePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E8F4FD] to-white">
-      {/* 헤더 */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold text-[#0066CC]">
-            일산마리아병원
-          </Link>
-          {isLoggedIn ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[#64748B]">{patientInfo.name}님</span>
-              <button
-                onClick={async () => {
-                  await fetch('/api/auth/logout', { method: 'POST' })
-                  router.push('/login')
-                }}
-                className="text-sm text-[#94A3B8] hover:text-[#64748B]"
-              >
-                로그아웃
-              </button>
-            </div>
-          ) : (
-            <Link href="/login" className="text-sm text-[#0066CC] hover:underline">
-              로그인
-            </Link>
-          )}
-        </div>
-      </header>
-
-      <div className="max-w-lg mx-auto px-4 py-6 animate-fade-in">
+    <div className="bg-gradient-to-b from-[#E8F4FD] to-white min-h-screen">
+      <div className="px-4 py-6 animate-fade-in">
         {/* 진행 표시 */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">

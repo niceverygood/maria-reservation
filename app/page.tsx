@@ -1,8 +1,9 @@
 import Link from 'next/link'
+import BottomNav from '@/components/patient/BottomNav'
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-[#E8F4FD] to-white">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 pb-24 bg-gradient-to-b from-[#E8F4FD] to-white">
       <div className="text-center max-w-md mx-auto animate-fade-in">
         {/* 로고 영역 */}
         <div className="mb-8">
@@ -40,20 +41,12 @@ export default function Home() {
             예약하기
           </Link>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Link
-              href="/mypage"
-              className="block w-full btn-secondary text-center py-3 rounded-xl"
-            >
-              마이페이지
-            </Link>
-            <Link
-              href="/reserve/lookup"
-              className="block w-full btn-secondary text-center py-3 rounded-xl"
-            >
-              예약 조회
-            </Link>
-          </div>
+          <Link
+            href="/reserve/lookup"
+            className="block w-full btn-secondary text-center py-3 rounded-xl"
+          >
+            예약 조회 / 취소
+          </Link>
         </div>
 
         {/* 안내 문구 */}
@@ -65,17 +58,20 @@ export default function Home() {
         <p className="mt-4 text-xs text-[#94A3B8]">
           📞 031-XXX-XXXX
         </p>
+
+        {/* 관리자 링크 */}
+        <div className="mt-6">
+          <Link
+            href="/admin/login"
+            className="text-sm text-[#94A3B8] hover:text-[#64748B] transition-colors"
+          >
+            직원 로그인
+          </Link>
+        </div>
       </div>
 
-      {/* 관리자 링크 (하단) */}
-      <div className="absolute bottom-8">
-        <Link
-          href="/admin/login"
-          className="text-sm text-[#94A3B8] hover:text-[#64748B] transition-colors"
-        >
-          직원 로그인
-        </Link>
-      </div>
+      {/* 하단 네비게이션 */}
+      <BottomNav />
     </div>
   )
 }

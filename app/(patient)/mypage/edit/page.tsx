@@ -26,7 +26,6 @@ export default function EditProfilePage() {
   })
   const [originalData, setOriginalData] = useState<PatientInfo | null>(null)
 
-  // 로그인 상태 확인 및 환자 정보 로드
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -53,7 +52,6 @@ export default function EditProfilePage() {
     checkAuth()
   }, [router])
 
-  // 저장
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -99,17 +97,17 @@ export default function EditProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#E8F4FD] to-white">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="inline-block w-8 h-8 border-4 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E8F4FD] to-white">
-      {/* 헤더 */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center">
+    <div className="bg-gradient-to-b from-[#E8F4FD] to-white min-h-screen">
+      {/* 상단 헤더 */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
+        <div className="px-4 py-3 flex items-center">
           <Link href="/mypage" className="mr-4">
             <svg className="w-6 h-6 text-[#1E293B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -117,9 +115,9 @@ export default function EditProfilePage() {
           </Link>
           <h1 className="text-lg font-bold text-[#1E293B]">프로필 수정</h1>
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-lg mx-auto px-4 py-6">
+      <div className="px-4 py-6">
         <form onSubmit={handleSubmit}>
           <div className="card">
             {/* 프로필 아이콘 */}
@@ -139,7 +137,6 @@ export default function EditProfilePage() {
               )}
             </div>
 
-            {/* 에러/성공 메시지 */}
             {error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-600">{error}</p>
@@ -147,11 +144,10 @@ export default function EditProfilePage() {
             )}
             {success && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-600">저장되었습니다! 마이페이지로 이동합니다...</p>
+                <p className="text-sm text-green-600">저장되었습니다!</p>
               </div>
             )}
 
-            {/* 입력 필드 */}
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[#1E293B] mb-2">
@@ -198,7 +194,6 @@ export default function EditProfilePage() {
             </div>
           </div>
 
-          {/* 저장 버튼 */}
           <div className="mt-6 flex gap-3">
             <Link href="/mypage" className="btn-secondary flex-1 text-center">
               취소
@@ -208,15 +203,7 @@ export default function EditProfilePage() {
               disabled={isSaving}
               className="btn-primary flex-1"
             >
-              {isSaving ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  저장 중...
-                </span>
-              ) : '저장하기'}
+              {isSaving ? '저장 중...' : '저장하기'}
             </button>
           </div>
         </form>
@@ -224,4 +211,3 @@ export default function EditProfilePage() {
     </div>
   )
 }
-
