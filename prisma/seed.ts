@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
@@ -7,136 +6,195 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 시드 데이터 생성 시작...')
 
-  // 1. 관리자 계정 생성
-  const adminPassword = await bcrypt.hash('admin123', 12)
-  const staffPassword = await bcrypt.hash('staff123', 12)
+  // 기존 데이터 삭제
+  await prisma.appointment.deleteMany()
+  await prisma.scheduleException.deleteMany()
+  await prisma.scheduleTemplate.deleteMany()
+  await prisma.doctor.deleteMany()
+  await prisma.adminUser.deleteMany()
 
-  const admin = await prisma.adminUser.upsert({
-    where: { email: 'admin@maria.com' },
-    update: {},
-    create: {
+  // 관리자 계정 생성
+  const passwordHash = await bcrypt.hash('admin1234', 10)
+  const admin = await prisma.adminUser.create({
+    data: {
       name: '관리자',
       email: 'admin@maria.com',
-      passwordHash: adminPassword,
+      passwordHash,
       role: 'ADMIN',
+      isActive: true,
     },
   })
   console.log('✅ 관리자 계정 생성:', admin.email)
 
-  const staff = await prisma.adminUser.upsert({
-    where: { email: 'staff@maria.com' },
-    update: {},
-    create: {
-      name: '원무과직원',
-      email: 'staff@maria.com',
-      passwordHash: staffPassword,
-      role: 'STAFF',
-    },
-  })
-  console.log('✅ 직원 계정 생성:', staff.email)
-
-  // 2. 의사 생성
-  const doctor1 = await prisma.doctor.upsert({
-    where: { id: 'doctor-1' },
-    update: {},
-    create: {
-      id: 'doctor-1',
-      name: '김철수',
-      department: '산부인과',
-      sortOrder: 1,
-    },
-  })
-  console.log('✅ 의사 생성:', doctor1.name)
-
-  const doctor2 = await prisma.doctor.upsert({
-    where: { id: 'doctor-2' },
-    update: {},
-    create: {
-      id: 'doctor-2',
-      name: '이영희',
-      department: '내과',
-      sortOrder: 2,
-    },
-  })
-  console.log('✅ 의사 생성:', doctor2.name)
-
-  const doctor3 = await prisma.doctor.upsert({
-    where: { id: 'doctor-3' },
-    update: {},
-    create: {
-      id: 'doctor-3',
-      name: '박지민',
-      department: '산부인과',
-      sortOrder: 3,
-    },
-  })
-  console.log('✅ 의사 생성:', doctor3.name)
-
-  // 3. 스케줄 템플릿 생성 (김철수 - 월~금)
-  const scheduleData = [
-    // 김철수: 월~금 오전 (09:00~12:00)
-    { doctorId: 'doctor-1', dayOfWeek: 1, dayStartTime: '09:00', dayEndTime: '12:00', slotIntervalMinutes: 15 },
-    { doctorId: 'doctor-1', dayOfWeek: 2, dayStartTime: '09:00', dayEndTime: '12:00', slotIntervalMinutes: 15 },
-    { doctorId: 'doctor-1', dayOfWeek: 3, dayStartTime: '09:00', dayEndTime: '12:00', slotIntervalMinutes: 15 },
-    { doctorId: 'doctor-1', dayOfWeek: 4, dayStartTime: '09:00', dayEndTime: '12:00', slotIntervalMinutes: 15 },
-    { doctorId: 'doctor-1', dayOfWeek: 5, dayStartTime: '09:00', dayEndTime: '12:00', slotIntervalMinutes: 15 },
-    
-    // 이영희: 월~금 오후 (14:00~17:00)
-    { doctorId: 'doctor-2', dayOfWeek: 1, dayStartTime: '14:00', dayEndTime: '17:00', slotIntervalMinutes: 20 },
-    { doctorId: 'doctor-2', dayOfWeek: 2, dayStartTime: '14:00', dayEndTime: '17:00', slotIntervalMinutes: 20 },
-    { doctorId: 'doctor-2', dayOfWeek: 3, dayStartTime: '14:00', dayEndTime: '17:00', slotIntervalMinutes: 20 },
-    { doctorId: 'doctor-2', dayOfWeek: 4, dayStartTime: '14:00', dayEndTime: '17:00', slotIntervalMinutes: 20 },
-    { doctorId: 'doctor-2', dayOfWeek: 5, dayStartTime: '14:00', dayEndTime: '17:00', slotIntervalMinutes: 20 },
-    
-    // 박지민: 월수금 오전 (09:00~12:00)
-    { doctorId: 'doctor-3', dayOfWeek: 1, dayStartTime: '09:00', dayEndTime: '12:00', slotIntervalMinutes: 10 },
-    { doctorId: 'doctor-3', dayOfWeek: 3, dayStartTime: '09:00', dayEndTime: '12:00', slotIntervalMinutes: 10 },
-    { doctorId: 'doctor-3', dayOfWeek: 5, dayStartTime: '09:00', dayEndTime: '12:00', slotIntervalMinutes: 10 },
-  ]
-
-  for (const schedule of scheduleData) {
-    await prisma.scheduleTemplate.upsert({
-      where: {
-        doctorId_dayOfWeek: {
-          doctorId: schedule.doctorId,
-          dayOfWeek: schedule.dayOfWeek,
+  // 일산마리아병원 의사 정보 생성
+  const doctors = await Promise.all([
+    // 이재호 원장
+    prisma.doctor.create({
+      data: {
+        name: '이재호',
+        department: '산부인과',
+        position: '원장',
+        isActive: true,
+        bio: '현 일산마리아 원장\n전 평촌마리아 진료과장\n산부인과 전문의 자격 취득\n서울대학교병원 산부인과 전공의 과정 이수\n서울대학교 의과대학 졸업',
+        scheduleTemplates: {
+          create: [
+            // 월요일
+            { dayOfWeek: 1, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 1, startTime: '14:00', endTime: '17:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+            // 화요일
+            { dayOfWeek: 2, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 2, startTime: '14:00', endTime: '17:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+            // 수요일 (오후 휴진)
+            { dayOfWeek: 3, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 목요일
+            { dayOfWeek: 4, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 4, startTime: '14:00', endTime: '17:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+            // 금요일
+            { dayOfWeek: 5, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 5, startTime: '14:00', endTime: '17:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+            // 토요일 (오전만)
+            { dayOfWeek: 6, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+          ],
         },
       },
-      update: schedule,
-      create: schedule,
-    })
-  }
-  console.log('✅ 스케줄 템플릿 생성 완료')
+    }),
 
-  // 4. 테스트 환자 생성
-  const patient = await prisma.patient.upsert({
-    where: {
-      name_birthDate_phone: {
-        name: '홍길동',
-        birthDate: '19900101',
-        phone: '01012345678',
+    // 신영관 원장
+    prisma.doctor.create({
+      data: {
+        name: '신영관',
+        department: '산부인과',
+        position: '원장',
+        isActive: true,
+        bio: '현 일산마리아 원장\n전 제주마리아 원장\n의학박사 전문의\n서울대학교병원 산부인과 전임의\n산부인과 전문의 자격 취득\n서울대학교병원 산부인과 전공의 과정 이수\n서울대학교 의과대학 졸업',
+        scheduleTemplates: {
+          create: [
+            // 월~금 오전만
+            { dayOfWeek: 1, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 2, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 3, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 4, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 5, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 토요일 오전
+            { dayOfWeek: 6, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+          ],
+        },
       },
-    },
-    update: {},
-    create: {
-      name: '홍길동',
-      birthDate: '19900101',
-      phone: '01012345678',
-    },
-  })
-  console.log('✅ 테스트 환자 생성:', patient.name)
+    }),
 
-  console.log('')
-  console.log('🎉 시드 데이터 생성 완료!')
-  console.log('')
-  console.log('📋 테스트 계정 정보:')
-  console.log('  - 관리자: admin@maria.com / admin123')
-  console.log('  - 직원:   staff@maria.com / staff123')
+    // 김하신 부장
+    prisma.doctor.create({
+      data: {
+        name: '김하신',
+        department: '산부인과',
+        position: '부장',
+        isActive: true,
+        bio: '현 일산마리아 진료부장\n서울대학교병원 임상강사 역임\n산부인과 전문의 자격 취득\n서울대학교병원 산부인과 전공의 과정 이수\n서울대학교병원 인턴\n서울대학교 의과대학 산부인과학 석사\n전남대학교 의과대학 졸업',
+        scheduleTemplates: {
+          create: [
+            // 월요일 (오후 휴진)
+            { dayOfWeek: 1, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 화요일 (오후 휴진)
+            { dayOfWeek: 2, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 수요일
+            { dayOfWeek: 3, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 3, startTime: '14:00', endTime: '17:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+            // 목요일 (오후 휴진)
+            { dayOfWeek: 4, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 금요일
+            { dayOfWeek: 5, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 5, startTime: '14:00', endTime: '17:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+            // 토요일 오전
+            { dayOfWeek: 6, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+          ],
+        },
+      },
+    }),
+
+    // 주이영 과장
+    prisma.doctor.create({
+      data: {
+        name: '주이영',
+        department: '산부인과',
+        position: '과장',
+        isActive: true,
+        bio: '현 일산마리아 진료과장\n산부인과 전문의 자격 취득\n서울대학교병원 산부인과 전공의 과정 이수\n서울대학교 의과대학 졸업',
+        scheduleTemplates: {
+          create: [
+            // 월요일
+            { dayOfWeek: 1, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 1, startTime: '14:00', endTime: '17:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+            // 화요일 (오후 휴진)
+            { dayOfWeek: 2, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 수요일 (오후 휴진)
+            { dayOfWeek: 3, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 목요일
+            { dayOfWeek: 4, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 4, startTime: '14:00', endTime: '17:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+            // 금요일 (오후 휴진)
+            { dayOfWeek: 5, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 토요일 오전
+            { dayOfWeek: 6, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+          ],
+        },
+      },
+    }),
+
+    // 조수민 과장
+    prisma.doctor.create({
+      data: {
+        name: '조수민',
+        department: '산부인과',
+        position: '과장',
+        isActive: true,
+        bio: '일산마리아 진료과장\n고려대학교 안암병원 산부인과 생식내분비 전임의\n산부인과 전문의 자격 취득\n고려대학교 산부인과 전공의 과정 이수\n고려대학교 의학전문대학원 졸업\n고려대학교 생명공학부 졸업',
+        scheduleTemplates: {
+          create: [
+            // 월요일 (오후 휴진)
+            { dayOfWeek: 1, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 화요일
+            { dayOfWeek: 2, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 2, startTime: '14:00', endTime: '17:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+            // 수요일
+            { dayOfWeek: 3, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            { dayOfWeek: 3, startTime: '14:00', endTime: '17:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+            // 목요일 (오후 휴진)
+            { dayOfWeek: 4, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 금요일 (오후 휴진)
+            { dayOfWeek: 5, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 20 },
+            // 토요일 오전
+            { dayOfWeek: 6, startTime: '07:30', endTime: '12:00', slotIntervalMinutes: 15, dailyMaxAppointments: 15 },
+          ],
+        },
+      },
+    }),
+
+    // 변희 마취과장
+    prisma.doctor.create({
+      data: {
+        name: '변희',
+        department: '마취통증의학과',
+        position: '마취과장',
+        isActive: true,
+        bio: '현 일산마리아 마취과장\n전 일산차병원 마취과장\n전 충무로 제일병원 마취과장\n전 신촌세브란스병원 임상전문의\n대한마취통증의학회 정회원\n마취통증의학과전문의 자격 취득\n신촌 세브란스병원 마취통증의학과 전공의수료\n이화여자대학교 의학과 졸업',
+        scheduleTemplates: {
+          create: [], // 마취과는 별도 예약 없음
+        },
+      },
+    }),
+  ])
+
+  console.log('✅ 의사 정보 생성 완료:')
+  doctors.forEach((doc) => {
+    console.log(`   - ${doc.name} ${doc.position} (${doc.department})`)
+  })
+
+  console.log('\n🎉 시드 데이터 생성 완료!')
 }
 
 main()
   .catch((e) => {
-    console.error('❌ 시드 데이터 생성 오류:', e)
+    console.error('❌ 시드 오류:', e)
     process.exit(1)
   })
   .finally(async () => {

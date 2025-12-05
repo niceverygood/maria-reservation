@@ -17,7 +17,10 @@ datasource db {
 model Doctor {
   id         String   @id @default(cuid())
   name       String
-  department String   // 진료과 (예: 산부인과, 내과 등)
+  department String   // 진료과 (예: 산부인과, 마취통증의학과 등)
+  position   String?  // 직책 (원장, 부장, 과장 등)
+  bio        String?  // 약력 (줄바꿈으로 구분)
+  imageUrl   String?  // 프로필 이미지 URL
   isActive   Boolean  @default(true)
   sortOrder  Int      @default(0) // 정렬 순서
   createdAt  DateTime @default(now())
@@ -38,15 +41,15 @@ model ScheduleTemplate {
   id                   String  @id @default(cuid())
   doctorId             String
   dayOfWeek            Int     // 0(일) ~ 6(토)
-  dayStartTime         String  // "09:00"
-  dayEndTime           String  // "12:00"
+  startTime            String  // "09:00"
+  endTime              String  // "12:00"
   slotIntervalMinutes  Int     @default(15) // 예약 간격 (분)
   dailyMaxAppointments Int?    // 하루 최대 예약 수 (null = 제한 없음)
   isActive             Boolean @default(true)
 
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
-  @@unique([doctorId, dayOfWeek])
+  @@unique([doctorId, dayOfWeek, startTime])
   @@map("schedule_templates")
 }
 
