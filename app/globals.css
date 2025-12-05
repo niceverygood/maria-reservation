@@ -1,22 +1,29 @@
 @import "tailwindcss";
 
 :root {
-  /* 병원 테마 색상 - 청량한 파란색 계열 */
-  --color-primary: #0066CC;
-  --color-primary-light: #3399FF;
-  --color-primary-dark: #004C99;
-  --color-secondary: #E8F4FD;
-  --color-accent: #00A651;
-  --color-warning: #FF9800;
-  --color-danger: #DC3545;
-  --color-success: #28A745;
+  /* 마리아병원 테마 - 민트/그린 계열 */
+  --color-primary: #5B9A8B;
+  --color-primary-light: #7AB8A8;
+  --color-primary-dark: #4A8577;
+  --color-secondary: #E8F5F2;
+  --color-accent: #E9B171;
+  --color-warning: #E9B171;
+  --color-danger: #E57373;
+  --color-success: #5B9A8B;
   
   /* 배경 및 텍스트 */
-  --color-background: #F8FAFC;
+  --color-background: #F5F9F8;
   --color-surface: #FFFFFF;
-  --color-text-primary: #1E293B;
-  --color-text-secondary: #64748B;
-  --color-border: #E2E8F0;
+  --color-text-primary: #2D3436;
+  --color-text-secondary: #636E72;
+  --color-text-muted: #B2BEC3;
+  --color-border: #DFE6E9;
+  
+  /* 캘린더 마커 색상 */
+  --color-marker-period: #E57373;
+  --color-marker-visit: #5B9A8B;
+  --color-marker-relation: #E9B171;
+  --color-marker-memo: #B2BEC3;
 }
 
 * {
@@ -39,70 +46,133 @@ body {
   }
 }
 
-/* 버튼 스타일 */
+/* 버튼 스타일 - 마리아 테마 */
 .btn-primary {
-  @apply bg-[#0066CC] text-white px-6 py-3 rounded-lg font-medium
-         hover:bg-[#004C99] active:bg-[#003D7A] transition-colors
-         disabled:bg-gray-300 disabled:cursor-not-allowed;
+  @apply bg-[#5B9A8B] text-white px-6 py-3 rounded-xl font-medium
+         hover:bg-[#4A8577] active:bg-[#3D7266] transition-all
+         disabled:bg-gray-300 disabled:cursor-not-allowed shadow-sm;
 }
 
 .btn-secondary {
-  @apply bg-white text-[#0066CC] px-6 py-3 rounded-lg font-medium
-         border border-[#0066CC] hover:bg-[#E8F4FD] transition-colors
+  @apply bg-white text-[#5B9A8B] px-6 py-3 rounded-xl font-medium
+         border border-[#5B9A8B] hover:bg-[#E8F5F2] transition-all
          disabled:border-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed;
 }
 
+.btn-outline {
+  @apply bg-white text-[#636E72] px-6 py-3 rounded-xl font-medium
+         border border-[#DFE6E9] hover:border-[#5B9A8B] hover:text-[#5B9A8B] transition-all;
+}
+
 .btn-danger {
-  @apply bg-[#DC3545] text-white px-6 py-3 rounded-lg font-medium
-         hover:bg-[#C82333] active:bg-[#BD2130] transition-colors;
+  @apply bg-[#E57373] text-white px-6 py-3 rounded-xl font-medium
+         hover:bg-[#EF5350] active:bg-[#E53935] transition-all;
+}
+
+.btn-kakao {
+  @apply bg-[#FEE500] text-[#191919] px-6 py-3 rounded-xl font-medium
+         hover:bg-[#FDD835] transition-all shadow-sm;
 }
 
 /* 입력 필드 스타일 */
 .input-field {
-  @apply w-full px-4 py-3 border border-gray-300 rounded-lg
-         focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-transparent
-         placeholder:text-gray-400 transition-all;
+  @apply w-full px-4 py-3.5 border border-[#DFE6E9] rounded-xl bg-white
+         focus:outline-none focus:ring-2 focus:ring-[#5B9A8B] focus:border-transparent
+         placeholder:text-[#B2BEC3] transition-all;
 }
 
-/* 카드 스타일 */
+/* 카드 스타일 - 마리아 테마 */
 .card {
-  @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
+  @apply bg-white rounded-2xl shadow-sm p-5;
+}
+
+.card-elevated {
+  @apply bg-white rounded-2xl shadow-md p-5;
+}
+
+/* 헤더 영역 그라데이션 배경 */
+.header-gradient {
+  background: linear-gradient(180deg, #E8F5F2 0%, #F5F9F8 100%);
 }
 
 /* 스크롤바 커스텀 */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+  background: #B2BEC3;
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: #636E72;
 }
 
-/* 선택 가능한 슬롯 버튼 */
+/* 선택 가능한 슬롯 버튼 - 마리아 테마 */
 .slot-btn {
-  @apply px-4 py-2 text-sm font-medium rounded-lg border transition-all
-         border-[#0066CC] text-[#0066CC] bg-white
-         hover:bg-[#0066CC] hover:text-white
-         focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:ring-offset-2;
+  @apply px-4 py-2.5 text-sm font-medium rounded-xl border transition-all
+         border-[#DFE6E9] text-[#636E72] bg-white
+         hover:border-[#5B9A8B] hover:text-[#5B9A8B]
+         focus:outline-none focus:ring-2 focus:ring-[#5B9A8B] focus:ring-offset-2;
 }
 
 .slot-btn.selected {
-  @apply bg-[#0066CC] text-white;
+  @apply bg-[#5B9A8B] text-white border-[#5B9A8B];
 }
 
 .slot-btn.disabled {
-  @apply border-gray-200 text-gray-400 cursor-not-allowed hover:bg-white hover:text-gray-400;
+  @apply border-[#DFE6E9] text-[#B2BEC3] cursor-not-allowed 
+         hover:border-[#DFE6E9] hover:text-[#B2BEC3];
+}
+
+/* 캘린더 스타일 */
+.calendar-day {
+  @apply w-10 h-10 flex flex-col items-center justify-center rounded-full transition-all;
+}
+
+.calendar-day.selected {
+  @apply bg-[#5B9A8B] text-white;
+}
+
+.calendar-day.today {
+  @apply border-2 border-[#5B9A8B];
+}
+
+.calendar-day:hover:not(.disabled):not(.selected) {
+  @apply bg-[#E8F5F2];
+}
+
+.calendar-day.disabled {
+  @apply text-[#B2BEC3] cursor-not-allowed;
+}
+
+/* 마커 점 */
+.marker-dot {
+  @apply w-1.5 h-1.5 rounded-full;
+}
+
+.marker-period { background-color: var(--color-marker-period); }
+.marker-visit { background-color: var(--color-marker-visit); }
+.marker-relation { background-color: var(--color-marker-relation); }
+.marker-memo { background-color: var(--color-marker-memo); }
+
+/* 하단 네비게이션 */
+.bottom-nav-item {
+  @apply flex flex-col items-center justify-center py-2 px-1 transition-colors;
+}
+
+.bottom-nav-item.active {
+  @apply text-[#5B9A8B];
+}
+
+.bottom-nav-item:not(.active) {
+  @apply text-[#B2BEC3];
 }
 
 /* 애니메이션 */
@@ -122,4 +192,32 @@ body {
 
 .animate-slide-up {
   animation: slideUp 0.4s ease-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Safe area for iOS */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* 담당의 카드 */
+.doctor-card {
+  @apply bg-[#F5F9F8] rounded-2xl p-4;
+}
+
+/* 섹션 타이틀 */
+.section-title {
+  @apply text-lg font-bold text-[#2D3436];
+}
+
+.section-link {
+  @apply text-sm text-[#5B9A8B] font-medium;
 }
