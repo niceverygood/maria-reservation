@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
+import { invalidateSlotCache } from '@/lib/cache/slotCache'
 
 /**
  * POST /api/patient/appointments/cancel
@@ -119,6 +120,9 @@ export async function POST(request: Request) {
       where: { id: appointmentId },
       data: { status: 'CANCELLED' },
     })
+
+    // 🚀 캐시 무효화
+    invalidateSlotCache(appointment.doctorId, appointment.date)
 
     return NextResponse.json({
       success: true,

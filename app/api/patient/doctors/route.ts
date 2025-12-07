@@ -59,7 +59,11 @@ export async function GET(request: Request) {
       }
       setCache(cacheKey, result)
 
-      return NextResponse.json({ success: true, ...result })
+      return NextResponse.json({ success: true, ...result }, {
+        headers: {
+          'Cache-Control': 'public, max-age=60, stale-while-revalidate=120',
+        },
+      })
     }
 
     // 날짜가 있는 경우 - 한 번에 모든 데이터 조회

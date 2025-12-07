@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
+import { getCachedSlots, setCachedSlots } from '@/lib/cache/slotCache'
 
 /**
  * POST /api/patient/appointments/available-slots
- * 환자용 - 특정 의사, 특정 날짜의 예약 가능 슬롯 조회 (최적화 버전)
+ * 환자용 - 특정 의사, 특정 날짜의 예약 가능 슬롯 조회 (캐싱 적용)
  */
 export async function POST(request: Request) {
   try {
@@ -24,6 +25,14 @@ export async function POST(request: Request) {
     
     if (requestDate < today) {
       return NextResponse.json({ success: false, error: '과거 날짜는 예약할 수 없습니다.' }, { status: 400 })
+    }
+
+    // 🚀 캐시 확인 (30초 TTL)
+    const cached = getCachedSlots(doctorId, date)
+    if (cached) {
+      return NextResponse.json({ success: true, ...cached }, {
+        headers: { 'X-Cache': 'HIT' }
+      })
     }
 
     const dayOfWeek = requestDate.getDay()
@@ -117,13 +126,19 @@ export async function POST(request: Request) {
       return { time, available }
     })
 
-    return NextResponse.json({
-      success: true,
+    // 🚀 응답 데이터 캐시에 저장
+    const responseData = {
       doctor: { id: doctor.id, name: doctor.name, department: doctor.department },
       date,
       slots,
       availableCount: slots.filter(s => s.available).length,
       totalCount: slots.length,
+    }
+    
+    setCachedSlots(doctorId, date, responseData)
+
+    return NextResponse.json({ success: true, ...responseData }, {
+      headers: { 'X-Cache': 'MISS' }
     })
   } catch (error) {
     console.error('예약 가능 슬롯 조회 오류:', error)

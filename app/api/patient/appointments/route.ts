@@ -4,6 +4,7 @@ import prisma from '@/lib/db'
 import { verifyPatientToken } from '@/lib/patientAuth'
 import { broadcastNewAppointment, broadcastReschedule } from '@/lib/ws/serverClient'
 import { sendReservationConfirmKakao } from '@/lib/notification/kakaoAlimtalk'
+import { invalidateSlotCache } from '@/lib/cache/slotCache'
 
 // 지점명 및 환자 웹 URL (환경변수로 설정 가능)
 const BRANCH_NAME = process.env.BRANCH_NAME || '일산마리아병원'
@@ -140,6 +141,9 @@ export async function POST(request: Request) {
         status: 'PENDING',
       },
     })
+
+    // 🚀 캐시 무효화 (즉시 실행)
+    invalidateSlotCache(doctorId, date)
 
     // 6단계: 비동기 작업들 (응답 후 처리 - 사용자 대기 없음)
     // WebSocket 브로드캐스트

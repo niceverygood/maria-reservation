@@ -14,12 +14,13 @@ const nextConfig: NextConfig = {
       },
     ],
     formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24, // 24시간 이미지 캐시
   },
 
   // 실험적 기능
   experimental: {
     // 패키지 최적화
-    optimizePackageImports: ['@prisma/client'],
+    optimizePackageImports: ['@prisma/client', 'clsx', 'tailwind-merge'],
   },
 
   // 헤더 설정 (캐싱)

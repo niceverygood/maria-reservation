@@ -53,6 +53,7 @@ model ScheduleTemplate {
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@unique([doctorId, dayOfWeek, startTime])
+  @@index([doctorId, dayOfWeek, isActive])  // 슬롯 조회 최적화
   @@map("schedule_templates")
 }
 
@@ -72,6 +73,7 @@ model ScheduleException {
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@unique([doctorId, date])
+  @@index([date])  // 날짜별 일괄 조회 최적화
   @@map("schedule_exceptions")
 }
 
@@ -94,6 +96,8 @@ model Patient {
   appointments Appointment[]
 
   @@unique([name, birthDate, phone])
+  @@index([phone])      // 전화번호 검색 최적화
+  @@index([name])       // 이름 검색 최적화
   @@map("patients")
 }
 
@@ -114,9 +118,12 @@ model Appointment {
   doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
-  @@index([doctorId, date])
-  @@index([patientId])
-  @@index([date, status])
+  // 복합 인덱스 (쿼리 패턴에 최적화)
+  @@index([doctorId, date, status])      // 슬롯 조회: WHERE doctorId AND date AND status IN
+  @@index([doctorId, date, time])        // 중복 체크: WHERE doctorId AND date AND time
+  @@index([patientId, date, status])     // 환자별 예약 조회
+  @@index([date, status])                // 날짜별 통계
+  @@index([reservedAt])                  // 최근 예약 정렬
   @@map("appointments")
 }
 

@@ -9,6 +9,7 @@ import {
   sendStatusChangeKakao,
   isNotificationEnabled,
 } from '@/lib/notification/kakaoAlimtalk'
+import { invalidateSlotCache } from '@/lib/cache/slotCache'
 
 // 지점명 및 환자 웹 URL
 const BRANCH_NAME = process.env.BRANCH_NAME || '일산마리아병원'
@@ -100,6 +101,9 @@ export async function PATCH(
         },
       },
     })
+
+    // 🚀 캐시 무효화
+    invalidateSlotCache(updatedAppointment.doctorId, updatedAppointment.date)
 
     // WebSocket 브로드캐스트 (비동기)
     broadcastStatusUpdate({
