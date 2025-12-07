@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePatientRealtime } from '@/contexts/PatientRealtimeContext'
 import { useWebSocket } from '@/lib/ws/useWebSocket'
-import { Skeleton, AppointmentCardSkeleton } from '@/components/ui/Skeleton'
+import { getPrefetchedMypageData, clearPrefetchCache } from '@/components/patient/BottomNav'
 
 interface PatientInfo {
   id: string
@@ -21,111 +21,140 @@ interface Appointment {
   time: string
   status: string
   doctor: {
+    id: string
     name: string
     department: string
   }
 }
 
-// 캐시
-const cache = new Map<string, { data: unknown; timestamp: number }>()
-const CACHE_TTL = 30000
+interface MypageData {
+  patient: PatientInfo
+  appointments: {
+    upcoming: Appointment[]
+    past: Appointment[]
+    total: number
+  }
+}
+
+// 전역 캐시 (페이지 이동 후에도 유지)
+let globalCache: { data: MypageData | null; timestamp: number } = { data: null, timestamp: 0 }
+const CACHE_TTL = 60000 // 1분
 
 export default function MyPage() {
   const router = useRouter()
   const { refreshTrigger } = usePatientRealtime()
-  const [patient, setPatient] = useState<PatientInfo | null>(null)
-  const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [data, setData] = useState<MypageData | null>(globalCache.data)
+  const [isLoading, setIsLoading] = useState(!globalCache.data)
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
   const lastFetch = useRef<number>(0)
+  const isMounted = useRef(true)
 
-  // 데이터 가져오기 함수
-  const fetchData = useCallback(async (showLoading = true, forceRefresh = false) => {
-    // 중복 호출 방지
-    if (!forceRefresh && Date.now() - lastFetch.current < 1000) return
-    lastFetch.current = Date.now()
+  // 데이터 가져오기 (단일 API 호출)
+  const fetchData = useCallback(async (forceRefresh = false) => {
+    // 1. 전역 캐시 체크
+    if (!forceRefresh && globalCache.data && Date.now() - globalCache.timestamp < CACHE_TTL) {
+      setData(globalCache.data)
+      setIsLoading(false)
+      return
+    }
 
-    if (showLoading) setIsLoading(true)
-    
-    try {
-      // 캐시 확인
-      if (!forceRefresh) {
-        const cachedData = cache.get('mypage-data')
-        if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
-          const { patient: cachedPatient, appointments: cachedAppointments } = cachedData.data as {
-            patient: PatientInfo
-            appointments: Appointment[]
-          }
-          setPatient(cachedPatient)
-          setAppointments(cachedAppointments)
-          setIsLoading(false)
-          return
+    // 2. 프리페치 캐시 체크 (BottomNav에서 미리 로드)
+    if (!forceRefresh) {
+      const prefetched = getPrefetchedMypageData() as { success: boolean; patient: PatientInfo; appointments: { upcoming: Appointment[]; past: Appointment[] } } | null
+      if (prefetched?.success) {
+        const newData: MypageData = {
+          patient: prefetched.patient,
+          appointments: prefetched.appointments,
         }
-      }
-
-      // 병렬로 데이터 로드
-      const [authRes, appointRes] = await Promise.all([
-        fetch('/api/auth/me'),
-        fetch('/api/patient/appointments/my'),
-      ])
-
-      const [authData, appointData] = await Promise.all([
-        authRes.json(),
-        appointRes.json(),
-      ])
-      
-      if (!authData.success) {
-        router.push('/login?redirect=/mypage')
+        globalCache = { data: newData, timestamp: Date.now() }
+        setData(newData)
+        setIsLoading(false)
+        clearPrefetchCache()
         return
       }
+    }
+
+    // 중복 호출 방지
+    if (Date.now() - lastFetch.current < 500) return
+    lastFetch.current = Date.now()
+
+    try {
+      const res = await fetch('/api/patient/mypage')
+      const result = await res.json()
       
-      setPatient(authData.patient)
-      
-      if (appointData.success) {
-        setAppointments(appointData.appointments)
+      if (!isMounted.current) return
+
+      if (!result.success) {
+        if (res.status === 401) {
+          router.push('/login?redirect=/mypage')
+        }
+        return
       }
 
-      // 캐시에 저장
-      cache.set('mypage-data', {
-        data: { patient: authData.patient, appointments: appointData.appointments || [] },
-        timestamp: Date.now(),
-      })
+      const newData: MypageData = {
+        patient: result.patient,
+        appointments: result.appointments,
+      }
+
+      // 전역 캐시 업데이트
+      globalCache = { data: newData, timestamp: Date.now() }
+      setData(newData)
     } catch (err) {
       console.error('데이터 로드 실패:', err)
     } finally {
-      setIsLoading(false)
+      if (isMounted.current) {
+        setIsLoading(false)
+      }
     }
   }, [router])
 
   // 초기 로드
   useEffect(() => {
-    fetchData(true)
+    isMounted.current = true
+    fetchData()
+    return () => { isMounted.current = false }
   }, [fetchData])
 
-  // 실시간 업데이트 시 데이터 새로고침 (로딩 표시 없이)
+  // 실시간 업데이트
   useEffect(() => {
     if (refreshTrigger > 0) {
-      cache.clear()
-      fetchData(false, true)
+      globalCache = { data: null, timestamp: 0 }
+      fetchData(true)
     }
   }, [refreshTrigger, fetchData])
 
   // WebSocket 실시간 동기화
   useWebSocket({
     onStatusUpdate: (payload) => {
-      if (payload?.id && payload?.status) {
-        setAppointments(prev =>
-          prev.map(apt => apt.id === payload.id ? { ...apt, status: payload.status as string } : apt)
-        )
-        cache.clear()
+      if (payload?.id && payload?.status && data) {
+        const updateAppointments = (apts: Appointment[]) =>
+          apts.map(apt => apt.id === payload.id ? { ...apt, status: payload.status as string } : apt)
+        
+        setData(prev => prev ? {
+          ...prev,
+          appointments: {
+            ...prev.appointments,
+            upcoming: updateAppointments(prev.appointments.upcoming),
+            past: updateAppointments(prev.appointments.past),
+          },
+        } : null)
+        globalCache = { data: null, timestamp: 0 }
       }
     },
     onCancelAppointment: (payload) => {
-      if (payload?.id) {
-        setAppointments(prev =>
-          prev.map(apt => apt.id === payload.id ? { ...apt, status: 'CANCELLED' } : apt)
-        )
-        cache.clear()
+      if (payload?.id && data) {
+        const updateAppointments = (apts: Appointment[]) =>
+          apts.map(apt => apt.id === payload.id ? { ...apt, status: 'CANCELLED' } : apt)
+        
+        setData(prev => prev ? {
+          ...prev,
+          appointments: {
+            ...prev.appointments,
+            upcoming: updateAppointments(prev.appointments.upcoming),
+            past: updateAppointments(prev.appointments.past),
+          },
+        } : null)
+        globalCache = { data: null, timestamp: 0 }
       }
     },
   })
@@ -135,9 +164,9 @@ export default function MyPage() {
     
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' })
-      const data = await res.json()
-      if (data.success) {
-        cache.clear()
+      const result = await res.json()
+      if (result.success) {
+        globalCache = { data: null, timestamp: 0 }
         window.location.href = '/'
       }
     } catch (err) {
@@ -152,16 +181,23 @@ export default function MyPage() {
       const res = await fetch(`/api/patient/appointments/${appointmentId}/cancel`, {
         method: 'POST',
       })
-      const data = await res.json()
+      const result = await res.json()
       
-      if (data.success) {
-        setAppointments(prev =>
-          prev.map(a => a.id === appointmentId ? { ...a, status: 'CANCELLED' } : a)
-        )
-        cache.clear()
+      if (result.success) {
+        // 즉시 UI 업데이트
+        setData(prev => prev ? {
+          ...prev,
+          appointments: {
+            ...prev.appointments,
+            upcoming: prev.appointments.upcoming.map(a => 
+              a.id === appointmentId ? { ...a, status: 'CANCELLED' } : a
+            ),
+          },
+        } : null)
+        globalCache = { data: null, timestamp: 0 }
         alert('예약이 취소되었습니다.')
       } else {
-        alert(data.error || '예약 취소에 실패했습니다.')
+        alert(result.error || '예약 취소에 실패했습니다.')
       }
     } catch (err) {
       console.error('예약 취소 실패:', err)
@@ -188,86 +224,69 @@ export default function MyPage() {
   }
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">승인대기</span>
-      case 'BOOKED':
-        return <span className="px-2 py-0.5 bg-[#E8F5F2] text-[#5B9A8B] text-xs rounded-full font-medium">예약완료</span>
-      case 'COMPLETED':
-        return <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full">진료완료</span>
-      case 'CANCELLED':
-        return <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">취소됨</span>
-      case 'REJECTED':
-        return <span className="px-2 py-0.5 bg-red-50 text-red-500 text-xs rounded-full">거절됨</span>
-      case 'NO_SHOW':
-        return <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-xs rounded-full">미방문</span>
-      default:
-        return null
+    const styles: Record<string, string> = {
+      PENDING: 'bg-yellow-100 text-yellow-700',
+      BOOKED: 'bg-[#E8F5F2] text-[#5B9A8B]',
+      COMPLETED: 'bg-blue-50 text-blue-600',
+      CANCELLED: 'bg-gray-100 text-gray-500',
+      REJECTED: 'bg-red-50 text-red-500',
+      NO_SHOW: 'bg-orange-50 text-orange-600',
     }
+    const labels: Record<string, string> = {
+      PENDING: '승인대기',
+      BOOKED: '예약완료',
+      COMPLETED: '진료완료',
+      CANCELLED: '취소됨',
+      REJECTED: '거절됨',
+      NO_SHOW: '미방문',
+    }
+    return (
+      <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${styles[status] || 'bg-gray-100 text-gray-500'}`}>
+        {labels[status] || status}
+      </span>
+    )
   }
 
-  // 메모이제이션된 예약 분류
-  const { upcomingAppointments, pastAppointments } = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    return {
-      upcomingAppointments: appointments.filter(
-        a => new Date(a.date) >= today && (a.status === 'PENDING' || a.status === 'BOOKED')
-      ),
-      pastAppointments: appointments.filter(
-        a => new Date(a.date) < today || !['PENDING', 'BOOKED'].includes(a.status)
-      ),
-    }
-  }, [appointments])
-
-  // 로딩 스켈레톤
+  // 스켈레톤 (캐시 미스 시에만)
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#F5F9F8] pb-24">
         <header className="header-gradient px-5 pt-6 pb-6">
-          <Skeleton className="h-7 w-28 bg-white/30" />
+          <div className="h-7 w-28 bg-white/30 rounded animate-pulse" />
         </header>
         <main className="px-5 -mt-2">
-          <div className="card mb-4 animate-pulse">
+          <div className="card mb-4">
             <div className="flex items-center gap-4">
-              <Skeleton className="w-16 h-16 rounded-full" />
+              <div className="w-16 h-16 rounded-full bg-gray-200 animate-pulse" />
               <div className="flex-1 space-y-2">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-28" />
+                <div className="h-5 w-24 bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
               </div>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3 mb-6">
             {[1, 2, 3].map(i => (
-              <div key={i} className="card py-4 text-center animate-pulse">
-                <Skeleton className="w-10 h-10 mx-auto rounded-full mb-2" />
-                <Skeleton className="h-4 w-12 mx-auto" />
+              <div key={i} className="card py-4 text-center">
+                <div className="w-10 h-10 mx-auto rounded-full bg-gray-200 animate-pulse mb-2" />
+                <div className="h-4 w-12 mx-auto bg-gray-200 rounded animate-pulse" />
               </div>
             ))}
-          </div>
-          <div className="card">
-            <Skeleton className="h-6 w-24 mb-4" />
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <AppointmentCardSkeleton key={i} />)}
-            </div>
           </div>
         </main>
       </div>
     )
   }
 
-  if (!patient) {
+  if (!data) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#F5F9F8] p-5">
         <p className="text-[#636E72] mb-4">로그인이 필요합니다</p>
-        <Link href="/login" className="btn-primary">
-          로그인하기
-        </Link>
+        <Link href="/login" className="btn-primary">로그인하기</Link>
       </div>
     )
   }
+
+  const { patient, appointments } = data
 
   return (
     <div className="min-h-screen bg-[#F5F9F8] pb-24">
@@ -278,15 +297,13 @@ export default function MyPage() {
 
       <main className="px-5 -mt-2">
         {/* 프로필 카드 */}
-        <div className="card mb-4 animate-fade-in">
+        <div className="card mb-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-gradient-to-br from-[#5B9A8B] to-[#4A8577] rounded-full flex items-center justify-center overflow-hidden">
               {patient.kakaoProfile ? (
                 <img src={patient.kakaoProfile} alt="" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-2xl font-bold text-white">
-                  {patient.name.charAt(0)}
-                </span>
+                <span className="text-2xl font-bold text-white">{patient.name.charAt(0)}</span>
               )}
             </div>
             <div className="flex-1">
@@ -335,12 +352,10 @@ export default function MyPage() {
         </div>
 
         {/* 예약 내역 */}
-        <div className="card animate-slide-up mb-6">
+        <div className="card mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="section-title">예약 내역</h3>
-            <Link href="/mypage/history" className="section-link">
-              전체보기
-            </Link>
+            <Link href="/mypage/history" className="section-link">전체보기</Link>
           </div>
 
           {/* 탭 */}
@@ -348,28 +363,24 @@ export default function MyPage() {
             <button
               onClick={() => setActiveTab('upcoming')}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'upcoming'
-                  ? 'bg-white text-[#5B9A8B] shadow-sm'
-                  : 'text-[#636E72]'
+                activeTab === 'upcoming' ? 'bg-white text-[#5B9A8B] shadow-sm' : 'text-[#636E72]'
               }`}
             >
-              예정된 예약 ({upcomingAppointments.length})
+              예정된 예약 ({appointments.upcoming.length})
             </button>
             <button
               onClick={() => setActiveTab('past')}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'past'
-                  ? 'bg-white text-[#5B9A8B] shadow-sm'
-                  : 'text-[#636E72]'
+                activeTab === 'past' ? 'bg-white text-[#5B9A8B] shadow-sm' : 'text-[#636E72]'
               }`}
             >
-              지난 예약 ({pastAppointments.length})
+              지난 예약 ({appointments.past.length})
             </button>
           </div>
 
           {/* 예약 목록 */}
           <div className="space-y-3">
-            {(activeTab === 'upcoming' ? upcomingAppointments : pastAppointments).length === 0 ? (
+            {(activeTab === 'upcoming' ? appointments.upcoming : appointments.past).length === 0 ? (
               <div className="text-center py-8">
                 <div className="w-16 h-16 mx-auto bg-[#F5F9F8] rounded-full flex items-center justify-center mb-3">
                   <svg className="w-8 h-8 text-[#B2BEC3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -386,31 +397,31 @@ export default function MyPage() {
                 )}
               </div>
             ) : (
-              (activeTab === 'upcoming' ? upcomingAppointments : pastAppointments).map((appointment) => (
-                <div key={appointment.id} className="p-4 bg-[#F5F9F8] rounded-xl">
+              (activeTab === 'upcoming' ? appointments.upcoming : appointments.past).slice(0, 5).map((apt) => (
+                <div key={apt.id} className="p-4 bg-[#F5F9F8] rounded-xl">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <p className="font-bold text-[#2D3436]">{formatDate(appointment.date)}</p>
-                      <p className="text-sm text-[#636E72]">{appointment.time}</p>
+                      <p className="font-bold text-[#2D3436]">{formatDate(apt.date)}</p>
+                      <p className="text-sm text-[#636E72]">{apt.time}</p>
                     </div>
-                    {getStatusBadge(appointment.status)}
+                    {getStatusBadge(apt.status)}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-[#636E72]">
-                    <span>{appointment.doctor.name} 선생님</span>
+                    <span>{apt.doctor.name} 선생님</span>
                     <span>·</span>
-                    <span>{appointment.doctor.department}</span>
+                    <span>{apt.doctor.department}</span>
                   </div>
                   
-                  {activeTab === 'upcoming' && (appointment.status === 'PENDING' || appointment.status === 'BOOKED') && (
+                  {activeTab === 'upcoming' && (apt.status === 'PENDING' || apt.status === 'BOOKED') && (
                     <div className="flex gap-2 mt-3">
                       <Link 
-                        href={`/reserve?reschedule=${appointment.id}`}
+                        href={`/reserve?reschedule=${apt.id}`}
                         className="flex-1 py-2 text-center text-sm text-[#5B9A8B] border border-[#5B9A8B] rounded-lg hover:bg-[#E8F5F2] transition-colors"
                       >
                         일정 변경
                       </Link>
                       <button
-                        onClick={() => handleCancelAppointment(appointment.id)}
+                        onClick={() => handleCancelAppointment(apt.id)}
                         className="flex-1 py-2 text-center text-sm text-[#E57373] border border-[#E57373] rounded-lg hover:bg-red-50 transition-colors"
                       >
                         예약 취소
@@ -418,7 +429,7 @@ export default function MyPage() {
                     </div>
                   )}
                   
-                  {activeTab === 'past' && appointment.status === 'COMPLETED' && (
+                  {activeTab === 'past' && apt.status === 'COMPLETED' && (
                     <Link 
                       href="/reserve"
                       className="block mt-3 py-2 text-center text-sm text-[#5B9A8B] border border-[#5B9A8B] rounded-lg hover:bg-[#E8F5F2] transition-colors"
@@ -432,7 +443,7 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* 로그아웃 버튼 */}
+        {/* 로그아웃 */}
         <button
           onClick={handleLogout}
           className="w-full py-3 text-center text-[#636E72] hover:text-[#E57373] transition-colors border border-gray-200 rounded-xl bg-white"

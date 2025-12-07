@@ -1,10 +1,54 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useCallback, useEffect, useRef } from 'react'
+
+// 프리페치 캐시
+let prefetchCache: { data: unknown; timestamp: number } | null = null
+const PREFETCH_TTL = 60000 // 1분
 
 export default function BottomNav() {
   const pathname = usePathname()
+  const router = useRouter()
+  const prefetchedRef = useRef(false)
+
+  // 마이페이지 데이터 프리페치
+  const prefetchMypage = useCallback(async () => {
+    // 이미 프리페치했으면 스킵
+    if (prefetchCache && Date.now() - prefetchCache.timestamp < PREFETCH_TTL) {
+      return
+    }
+    
+    // 마이페이지가 아닐 때만 프리페치
+    if (pathname === '/mypage' || pathname.startsWith('/mypage/')) {
+      return
+    }
+
+    try {
+      const res = await fetch('/api/patient/mypage')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          prefetchCache = { data, timestamp: Date.now() }
+          // Next.js 라우터 프리페치
+          router.prefetch('/mypage')
+        }
+      }
+    } catch {
+      // 프리페치 실패는 무시
+    }
+  }, [pathname, router])
+
+  // 컴포넌트 마운트 시 프리페치
+  useEffect(() => {
+    if (!prefetchedRef.current && pathname !== '/mypage') {
+      prefetchedRef.current = true
+      // 1초 후 프리페치 (초기 로딩 방해 안 하도록)
+      const timer = setTimeout(prefetchMypage, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [prefetchMypage, pathname])
 
   const navItems = [
     {
@@ -24,6 +68,7 @@ export default function BottomNav() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 0 : 1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       ),
+      onHover: prefetchMypage, // 호버 시 프리페치
     },
   ]
 
@@ -42,6 +87,9 @@ export default function BottomNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
+                onMouseEnter={item.onHover}
+                onTouchStart={item.onHover}
                 className={`flex flex-col items-center justify-center flex-1 py-2 transition-all ${
                   active ? 'text-[#5B9A8B]' : 'text-[#B2BEC3]'
                 }`}
@@ -59,4 +107,17 @@ export default function BottomNav() {
       <div className="h-[env(safe-area-inset-bottom)] bg-white" />
     </nav>
   )
+}
+
+// 프리페치된 데이터 가져오기 (마이페이지에서 사용)
+export function getPrefetchedMypageData() {
+  if (prefetchCache && Date.now() - prefetchCache.timestamp < PREFETCH_TTL) {
+    return prefetchCache.data
+  }
+  return null
+}
+
+// 프리페치 캐시 초기화
+export function clearPrefetchCache() {
+  prefetchCache = null
 }
