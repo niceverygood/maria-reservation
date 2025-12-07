@@ -680,23 +680,28 @@ function AdminReservationsPageContent() {
                     {count && count.total > 0 && (
                       <div className="mt-1 flex flex-wrap gap-0.5">
                         {count.pending > 0 && (
-                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-yellow-400 text-white">
+                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-yellow-400 text-white" title="대기">
                             {count.pending}
                           </span>
                         )}
                         {count.booked > 0 && (
-                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-blue-500 text-white">
+                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-blue-500 text-white" title="확정">
                             {count.booked}
                           </span>
                         )}
                         {count.completed > 0 && (
-                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-green-500 text-white">
+                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-green-500 text-white" title="완료">
                             {count.completed}
                           </span>
                         )}
                         {count.noShow > 0 && (
-                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-purple-500 text-white">
+                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-purple-600 text-white" title="노쇼">
                             {count.noShow}
+                          </span>
+                        )}
+                        {count.cancelled > 0 && (
+                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-gray-400 text-white" title="취소">
+                            {count.cancelled}
                           </span>
                         )}
                       </div>
