@@ -3,12 +3,11 @@ import prisma from '@/lib/db'
 
 /**
  * GET /api/patient/slots/count-by-date
- * 날짜별 예약 가능 여부 조회 (초고속 버전)
+ * 날짜별 예약 가능 슬롯 수 조회 (초고속 버전)
  * 
  * 최적화:
- * - 슬롯 수 대신 예약 가능 여부(있음/없음)만 반환
- * - 단일 쿼리로 예약된 슬롯만 조회
- * - 스케줄 계산 최소화
+ * - DailySlotSummary 테이블에서 사전 계산된 데이터 조회 (1개 쿼리)
+ * - 사전 계산 데이터 없으면 실시간 추정치 반환
  */
 export async function GET(request: Request) {
   try {
@@ -20,57 +19,98 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'startDate와 endDate가 필요합니다.' }, { status: 400 })
     }
 
-    // 단일 쿼리: 날짜별 예약 수만 조회 (가장 빠름)
-    const bookedCounts = await prisma.appointment.groupBy({
-      by: ['date'],
+    const now = new Date()
+    const todayStr = now.toISOString().split('T')[0]
+
+    // 1️⃣ 사전 계산된 슬롯 요약 조회 (단일 쿼리, 초고속)
+    const summaries = await prisma.dailySlotSummary.findMany({
       where: {
         date: { gte: startDate, lte: endDate },
-        status: { in: ['PENDING', 'BOOKED'] },
       },
-      _count: { id: true },
+      select: {
+        date: true,
+        availableSlots: true,
+        isOff: true,
+      },
     })
 
-    // 날짜별 예약 수 맵
+    // 사전 계산 데이터가 있으면 바로 반환
+    if (summaries.length > 0) {
+      const counts: Record<string, number> = {}
+      
+      // 날짜 범위 순회
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      
+      // 사전 계산 데이터를 맵으로 변환
+      const summaryMap = new Map(summaries.map(s => [s.date, s]))
+      
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0]
+        const dayOfWeek = d.getDay()
+        
+        // 일요일 또는 과거는 0
+        if (dayOfWeek === 0 || dateStr < todayStr) {
+          counts[dateStr] = 0
+          continue
+        }
+        
+        const summary = summaryMap.get(dateStr)
+        if (summary) {
+          // 휴진일이면 0
+          counts[dateStr] = summary.isOff ? 0 : summary.availableSlots
+        } else {
+          // 사전 계산 데이터 없으면 기본값
+          counts[dateStr] = 20
+        }
+      }
+
+      return NextResponse.json({ success: true, counts, source: 'precomputed' }, {
+        headers: {
+          'Cache-Control': 'public, max-age=60, stale-while-revalidate=120',
+        },
+      })
+    }
+
+    // 2️⃣ 폴백: 사전 계산 데이터 없으면 실시간 추정
+    const [bookedCounts, doctorCount] = await Promise.all([
+      prisma.appointment.groupBy({
+        by: ['date'],
+        where: {
+          date: { gte: startDate, lte: endDate },
+          status: { in: ['PENDING', 'BOOKED'] },
+        },
+        _count: { id: true },
+      }),
+      prisma.doctor.count({ where: { isActive: true } }),
+    ])
+
     const bookedMap = new Map(bookedCounts.map(b => [b.date, b._count.id]))
-
-    // 활성 의사 수 조회 (캐싱 가능)
-    const doctorCount = await prisma.doctor.count({ where: { isActive: true } })
-
-    // 평균 슬롯 수 추정 (의사당 하루 약 20슬롯 가정)
     const estimatedSlotsPerDay = doctorCount * 20
 
-    // 날짜 범위 순회
     const counts: Record<string, number> = {}
     const start = new Date(startDate)
     const end = new Date(endDate)
-    const now = new Date()
-    const todayStr = now.toISOString().split('T')[0]
 
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dateStr = d.toISOString().split('T')[0]
       const dayOfWeek = d.getDay()
       
-      // 일요일은 휴무 (0 = 일요일)
-      if (dayOfWeek === 0) {
+      if (dayOfWeek === 0 || dateStr < todayStr) {
         counts[dateStr] = 0
         continue
       }
 
-      // 과거 날짜는 0
-      if (dateStr < todayStr) {
-        counts[dateStr] = 0
-        continue
-      }
-
-      // 예약된 수를 빼서 남은 슬롯 추정
       const booked = bookedMap.get(dateStr) || 0
       const available = Math.max(0, estimatedSlotsPerDay - booked)
-      
-      // 오늘이면 반으로 줄임 (이미 지난 시간 고려)
       counts[dateStr] = dateStr === todayStr ? Math.floor(available / 2) : available
     }
 
-    return NextResponse.json({ success: true, counts })
+    return NextResponse.json({ success: true, counts, source: 'realtime' }, {
+      headers: {
+        'Cache-Control': 'public, max-age=30',
+      },
+    })
   } catch (error) {
     console.error('날짜별 슬롯 수 조회 오류:', error)
     return NextResponse.json(
