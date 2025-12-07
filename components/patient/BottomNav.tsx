@@ -5,50 +5,71 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef } from 'react'
 
 // 프리페치 캐시
-let prefetchCache: { data: unknown; timestamp: number } | null = null
+interface PrefetchCache {
+  mypage: { data: unknown; timestamp: number } | null
+  doctors: { data: unknown; timestamp: number } | null
+}
+
+const prefetchCache: PrefetchCache = {
+  mypage: null,
+  doctors: null,
+}
 const PREFETCH_TTL = 60000 // 1분
 
 export default function BottomNav() {
   const pathname = usePathname()
   const router = useRouter()
-  const prefetchedRef = useRef(false)
+  const prefetchedRef = useRef({ mypage: false, reserve: false })
 
   // 마이페이지 데이터 프리페치
   const prefetchMypage = useCallback(async () => {
-    // 이미 프리페치했으면 스킵
-    if (prefetchCache && Date.now() - prefetchCache.timestamp < PREFETCH_TTL) {
-      return
-    }
-    
-    // 마이페이지가 아닐 때만 프리페치
-    if (pathname === '/mypage' || pathname.startsWith('/mypage/')) {
-      return
-    }
+    if (prefetchCache.mypage && Date.now() - prefetchCache.mypage.timestamp < PREFETCH_TTL) return
+    if (pathname === '/mypage' || pathname.startsWith('/mypage/')) return
 
     try {
       const res = await fetch('/api/patient/mypage')
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
-          prefetchCache = { data, timestamp: Date.now() }
-          // Next.js 라우터 프리페치
+          prefetchCache.mypage = { data, timestamp: Date.now() }
           router.prefetch('/mypage')
         }
       }
-    } catch {
-      // 프리페치 실패는 무시
-    }
+    } catch { /* ignore */ }
+  }, [pathname, router])
+
+  // 예약 페이지 데이터 프리페치 (의사 목록)
+  const prefetchReserve = useCallback(async () => {
+    if (prefetchCache.doctors && Date.now() - prefetchCache.doctors.timestamp < PREFETCH_TTL) return
+    if (pathname === '/reserve') return
+
+    try {
+      const res = await fetch('/api/patient/doctors')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          prefetchCache.doctors = { data, timestamp: Date.now() }
+          router.prefetch('/reserve')
+        }
+      }
+    } catch { /* ignore */ }
   }, [pathname, router])
 
   // 컴포넌트 마운트 시 프리페치
   useEffect(() => {
-    if (!prefetchedRef.current && pathname !== '/mypage') {
-      prefetchedRef.current = true
-      // 1초 후 프리페치 (초기 로딩 방해 안 하도록)
-      const timer = setTimeout(prefetchMypage, 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [prefetchMypage, pathname])
+    const timer = setTimeout(() => {
+      if (!prefetchedRef.current.mypage && pathname !== '/mypage') {
+        prefetchedRef.current.mypage = true
+        prefetchMypage()
+      }
+      if (!prefetchedRef.current.reserve && pathname !== '/reserve') {
+        prefetchedRef.current.reserve = true
+        prefetchReserve()
+      }
+    }, 1500) // 1.5초 후 프리페치
+
+    return () => clearTimeout(timer)
+  }, [prefetchMypage, prefetchReserve, pathname])
 
   const navItems = [
     {
@@ -59,6 +80,7 @@ export default function BottomNav() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 0 : 1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       ),
+      onHover: prefetchReserve,
     },
     {
       href: '/mypage',
@@ -68,7 +90,7 @@ export default function BottomNav() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 0 : 1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       ),
-      onHover: prefetchMypage, // 호버 시 프리페치
+      onHover: prefetchMypage,
     },
   ]
 
@@ -103,21 +125,29 @@ export default function BottomNav() {
           })}
         </div>
       </div>
-      {/* iOS Safe Area */}
       <div className="h-[env(safe-area-inset-bottom)] bg-white" />
     </nav>
   )
 }
 
-// 프리페치된 데이터 가져오기 (마이페이지에서 사용)
+// 프리페치된 마이페이지 데이터 가져오기
 export function getPrefetchedMypageData() {
-  if (prefetchCache && Date.now() - prefetchCache.timestamp < PREFETCH_TTL) {
-    return prefetchCache.data
+  if (prefetchCache.mypage && Date.now() - prefetchCache.mypage.timestamp < PREFETCH_TTL) {
+    return prefetchCache.mypage.data
+  }
+  return null
+}
+
+// 프리페치된 의사 목록 가져오기
+export function getPrefetchedDoctors() {
+  if (prefetchCache.doctors && Date.now() - prefetchCache.doctors.timestamp < PREFETCH_TTL) {
+    return prefetchCache.doctors.data
   }
   return null
 }
 
 // 프리페치 캐시 초기화
 export function clearPrefetchCache() {
-  prefetchCache = null
+  prefetchCache.mypage = null
+  prefetchCache.doctors = null
 }
