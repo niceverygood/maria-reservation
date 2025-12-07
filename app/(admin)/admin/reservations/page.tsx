@@ -50,6 +50,8 @@ interface Appointment {
   memo: string | null
   doctor: Doctor
   patient: Patient
+  emrSynced?: boolean
+  emrSyncedAt?: string
 }
 
 interface DateCount {
@@ -62,7 +64,7 @@ interface DateCount {
   noShow: number
 }
 
-type ViewMode = 'calendar' | 'list'
+type ViewMode = 'calendar' | 'list' | 'all'
 
 // 캐시 저장소
 const cache = new Map<string, { data: unknown; timestamp: number }>()
@@ -91,11 +93,20 @@ function AdminReservationsPageContent() {
   const { refreshTrigger } = useRealtime()
   const [viewMode, setViewMode] = useState<ViewMode>('calendar')
   const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [allAppointments, setAllAppointments] = useState<Appointment[]>([])
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [isLoadingAll, setIsLoadingAll] = useState(false)
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null)
   const [highlightedId, setHighlightedId] = useState<string | null>(highlightId)
+  const [allFilters, setAllFilters] = useState({
+    doctorId: '',
+    status: '',
+    search: '',
+    startDate: '',
+    endDate: ''
+  })
 
   // 캘린더 상태
   const today = new Date()
@@ -265,8 +276,40 @@ function AdminReservationsPageContent() {
     }
   }, [filters, selectedDate, viewMode, router])
 
+  // 전체 예약 목록 로드
+  const fetchAllAppointments = useCallback(async () => {
+    setIsLoadingAll(true)
+    try {
+      const params = new URLSearchParams()
+      if (allFilters.doctorId) params.append('doctorId', allFilters.doctorId)
+      if (allFilters.status) params.append('status', allFilters.status)
+      if (allFilters.search) params.append('search', allFilters.search)
+      if (allFilters.startDate) params.append('startDate', allFilters.startDate)
+      if (allFilters.endDate) params.append('endDate', allFilters.endDate)
+      params.append('limit', '100')
+
+      const res = await fetch(`/api/admin/appointments/all?${params.toString()}`)
+      const data = await res.json()
+
+      if (data.success) {
+        setAllAppointments(data.appointments)
+      }
+    } catch (error) {
+      console.error('전체 예약 조회 오류:', error)
+    } finally {
+      setIsLoadingAll(false)
+    }
+  }, [allFilters])
+
+  // 뷰 모드가 'all'로 변경될 때 전체 예약 로드
   useEffect(() => {
-    if (!isInitialLoad) {
+    if (viewMode === 'all') {
+      fetchAllAppointments()
+    }
+  }, [viewMode, fetchAllAppointments])
+
+  useEffect(() => {
+    if (!isInitialLoad && viewMode !== 'all') {
       fetchAppointments()
     }
   }, [selectedDate, filters, viewMode, isInitialLoad])
@@ -465,6 +508,39 @@ function AdminReservationsPageContent() {
     }
   }
 
+  // EMR 등록 완료 핸들러
+  const handleEmrSync = async (appointmentId: string, currentSynced: boolean) => {
+    const action = currentSynced ? '취소' : '완료'
+    if (!confirm(`EMR 등록을 ${action} 처리하시겠습니까?`)) return
+    
+    setStatusUpdating(appointmentId)
+    try {
+      const res = await fetch(`/api/admin/appointments/${appointmentId}/emr-sync`, {
+        method: currentSynced ? 'DELETE' : 'POST'
+      })
+      const data = await res.json()
+      
+      if (data.success) {
+        // 로컬 상태 업데이트
+        const updateFn = (prev: Appointment[]) => prev.map(apt => 
+          apt.id === appointmentId 
+            ? { ...apt, emrSynced: !currentSynced, emrSyncedAt: currentSynced ? undefined : new Date().toISOString() }
+            : apt
+        )
+        setAppointments(updateFn)
+        setAllAppointments(updateFn)
+        clearCache()
+      } else {
+        alert(data.error || `EMR 등록 ${action} 실패`)
+      }
+    } catch (error) {
+      console.error(`EMR 등록 ${action} 오류:`, error)
+      alert(`EMR 등록 ${action} 중 오류가 발생했습니다.`)
+    } finally {
+      setStatusUpdating(null)
+    }
+  }
+
   const formatPhone = (phone: string) => {
     if (!phone) return '-'
     if (phone.length === 11) {
@@ -649,9 +725,21 @@ function AdminReservationsPageContent() {
                     apt.status === 'BOOKED' ? 'bg-blue-50 border border-blue-200' :
                     apt.status === 'COMPLETED' ? 'bg-green-50 border border-green-200' :
                     'bg-gray-50'
-                  }`}>
+                  } ${!apt.emrSynced && ['BOOKED', 'COMPLETED'].includes(apt.status) ? 'ring-2 ring-red-300' : ''}`}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-bold text-[#1E293B]">{apt.time}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[#1E293B]">{apt.time}</span>
+                        {/* EMR 상태 표시 */}
+                        {['BOOKED', 'COMPLETED'].includes(apt.status) && (
+                          <span className={`px-1.5 py-0.5 text-[10px] rounded ${
+                            apt.emrSynced 
+                              ? 'bg-emerald-100 text-emerald-700' 
+                              : 'bg-red-100 text-red-600 animate-pulse'
+                          }`}>
+                            {apt.emrSynced ? 'EMR✓' : 'EMR⚠'}
+                          </span>
+                        )}
+                      </div>
                       <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusStyle(apt.status)}`}>
                         {getStatusLabel(apt.status)}
                       </span>
@@ -682,29 +770,53 @@ function AdminReservationsPageContent() {
                     )}
                     
                     {apt.status === 'BOOKED' && (
-                      <div className="mt-3 flex gap-1">
+                      <div className="mt-3 space-y-2">
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleStatusChange(apt.id, 'COMPLETED')}
+                            disabled={statusUpdating === apt.id}
+                            className="flex-1 py-2 text-xs font-bold bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+                          >
+                            ✓ 완료
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(apt.id, 'NO_SHOW')}
+                            disabled={statusUpdating === apt.id}
+                            className="flex-1 py-2 text-xs font-bold bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
+                          >
+                            노쇼
+                          </button>
+                          <button
+                            onClick={() => confirm('취소하시겠습니까?') && handleStatusChange(apt.id, 'CANCELLED')}
+                            disabled={statusUpdating === apt.id}
+                            className="flex-1 py-2 text-xs font-bold bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
+                          >
+                            취소
+                          </button>
+                        </div>
+                        {/* EMR 등록 버튼 */}
                         <button
-                          onClick={() => handleStatusChange(apt.id, 'COMPLETED')}
+                          onClick={() => handleEmrSync(apt.id, apt.emrSynced || false)}
                           disabled={statusUpdating === apt.id}
-                          className="flex-1 py-2 text-xs font-bold bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+                          className={`w-full py-2 text-xs font-bold rounded-lg disabled:opacity-50 ${
+                            apt.emrSynced 
+                              ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' 
+                              : 'bg-purple-500 text-white hover:bg-purple-600'
+                          }`}
                         >
-                          ✓ 완료
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(apt.id, 'NO_SHOW')}
-                          disabled={statusUpdating === apt.id}
-                          className="flex-1 py-2 text-xs font-bold bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
-                        >
-                          노쇼
-                        </button>
-                        <button
-                          onClick={() => confirm('취소하시겠습니까?') && handleStatusChange(apt.id, 'CANCELLED')}
-                          disabled={statusUpdating === apt.id}
-                          className="flex-1 py-2 text-xs font-bold bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
-                        >
-                          취소
+                          {apt.emrSynced ? '✓ EMR 등록됨 (취소)' : '📋 EMR 등록 완료'}
                         </button>
                       </div>
+                    )}
+
+                    {apt.status === 'COMPLETED' && !apt.emrSynced && (
+                      <button
+                        onClick={() => handleEmrSync(apt.id, false)}
+                        disabled={statusUpdating === apt.id}
+                        className="mt-3 w-full py-2 text-xs font-bold bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
+                      >
+                        📋 EMR 등록 완료
+                      </button>
                     )}
                   </div>
                 ))}

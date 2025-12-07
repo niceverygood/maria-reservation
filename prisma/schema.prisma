@@ -115,6 +115,11 @@ model Appointment {
   reservedAt DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // EMR 등록 관리
+  emrSynced    Boolean   @default(false)  // EMR에 등록 완료 여부
+  emrSyncedAt  DateTime?                  // EMR 등록 시간
+  emrSyncedBy  String?                    // EMR 등록한 관리자 ID
+
   doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
@@ -124,6 +129,7 @@ model Appointment {
   @@index([patientId, date, status])     // 환자별 예약 조회
   @@index([date, status])                // 날짜별 통계
   @@index([reservedAt])                  // 최근 예약 정렬
+  @@index([emrSynced, date])             // EMR 미등록 예약 조회
   @@map("appointments")
 }
 

@@ -71,6 +71,8 @@ export async function GET(request: Request) {
           time: true,
           status: true,
           memo: true,
+          emrSynced: true,
+          emrSyncedAt: true,
           doctor: {
             select: {
               id: true,
