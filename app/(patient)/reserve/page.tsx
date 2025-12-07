@@ -565,7 +565,7 @@ function ReserveContent() {
 
             <div className="grid grid-cols-7 mb-2">
               {dayNames.map((day, idx) => (
-                <div key={day} className={`text-center text-sm font-medium py-2 ${idx === 5 ? 'text-blue-500' : idx === 6 ? 'text-red-500' : 'text-gray-600'}`}>{day}</div>
+                <div key={day} className={`text-center text-sm font-medium py-2 ${idx === 0 ? 'text-red-500' : idx === 6 ? 'text-blue-500' : 'text-gray-600'}`}>{day}</div>
               ))}
             </div>
 
@@ -724,7 +724,7 @@ function ReserveContent() {
 
                 <div className="grid grid-cols-7 mb-2">
                   {dayNames.map((day, idx) => (
-                    <div key={day} className={`text-center text-sm font-medium py-2 ${idx === 5 ? 'text-blue-500' : idx === 6 ? 'text-red-500' : 'text-gray-600'}`}>{day}</div>
+                    <div key={day} className={`text-center text-sm font-medium py-2 ${idx === 0 ? 'text-red-500' : idx === 6 ? 'text-blue-500' : 'text-gray-600'}`}>{day}</div>
                   ))}
                 </div>
 
@@ -736,9 +736,9 @@ function ReserveContent() {
                     const slotCount = doctorDateSlots[dateStr] || 0
                     const hasSlots = slotCount > 0
                     const isToday = dateStr === todayStr
-                    const isSaturday = idx % 7 === 5
-                    const isSunday = idx % 7 === 6
-                    const isClickable = isInRange && hasSlots
+                    const isSunday = date.getDay() === 0
+                    const isSaturday = date.getDay() === 6
+                    const isClickable = isInRange && hasSlots && !isSunday
 
                     return (
                       <button
