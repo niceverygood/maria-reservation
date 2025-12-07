@@ -88,7 +88,7 @@ function ReserveContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false) // 로딩 표시 안 함
   const [rescheduleAppointment, setRescheduleAppointment] = useState<{
     id: string; date: string; time: string; doctorName: string
   } | null>(null)
@@ -136,12 +136,12 @@ function ReserveContent() {
     return { minDate, maxDate }
   }, [today])
 
-  // 캘린더 데이터
+  // 캘린더 데이터 (일요일 시작)
   const calendarDays = useMemo(() => {
     const days: (Date | null)[] = []
     const firstDay = new Date(currentYear, currentMonth, 1)
     const lastDay = new Date(currentYear, currentMonth + 1, 0)
-    const startPadding = (firstDay.getDay() + 6) % 7
+    const startPadding = firstDay.getDay() // 일요일 = 0
 
     for (let i = 0; i < startPadding; i++) days.push(null)
     for (let i = 1; i <= lastDay.getDate(); i++) {
@@ -268,7 +268,7 @@ function ReserveContent() {
         }
       } catch { /* ignore */ }
       
-      setIsCheckingAuth(false)
+      // 인증 체크 완료 (이미 화면은 표시됨)
     }
     
     init()
@@ -369,9 +369,26 @@ function ReserveContent() {
   const handleSubmit = async () => {
     if (!selectedDoctor || !selectedDate || !selectedTime) return
 
+    // 즉시 로딩 상태로 변경
     setIsLoading(true)
     setError('')
 
+    // 낙관적 업데이트: 즉시 결과 설정하고 마이페이지로 이동
+    const optimisticResult = {
+      id: 'pending',
+      doctorName: selectedDoctor.name,
+      department: selectedDoctor.department,
+      date: selectedDate,
+      time: selectedTime,
+    }
+    setAppointmentResult(optimisticResult)
+
+    // 로그인된 사용자는 즉시 마이페이지로 이동
+    if (isLoggedIn) {
+      router.push('/mypage?reserved=true')
+    }
+
+    // 백그라운드에서 API 호출
     try {
       const res = await fetch('/api/patient/appointments', {
         method: 'POST',
@@ -388,20 +405,28 @@ function ReserveContent() {
       })
       const data = await res.json()
 
-      if (data.success) {
-        setAppointmentResult(data.appointment)
-        if (isLoggedIn) {
-          router.push('/mypage?reserved=true')
-        } else {
-          setStep('complete')
+      if (!data.success) {
+        // 실패 시 에러 표시 (이미 마이페이지로 갔다면 거기서 처리)
+        console.error('예약 실패:', data.error)
+        if (!isLoggedIn) {
+          setError(data.error || '예약 생성에 실패했습니다.')
+          setAppointmentResult(null)
+          setIsLoading(false)
         }
       } else {
-        setError(data.error || '예약 생성에 실패했습니다.')
+        // 성공 시 완료 화면 (비로그인 사용자)
+        if (!isLoggedIn) {
+          setAppointmentResult(data.appointment)
+          setStep('complete')
+          setIsLoading(false)
+        }
       }
     } catch {
-      setError('예약 중 오류가 발생했습니다.')
-    } finally {
-      setIsLoading(false)
+      if (!isLoggedIn) {
+        setError('예약 중 오류가 발생했습니다.')
+        setAppointmentResult(null)
+        setIsLoading(false)
+      }
     }
   }
 
@@ -438,12 +463,9 @@ function ReserveContent() {
                    patientInfo.phone.length >= 10
 
   const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
-  const dayNames = ['월', '화', '수', '목', '금', '토', '일']
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토']
 
-  // 스켈레톤
-  if (isCheckingAuth) {
-    return <ReserveLoading />
-  }
+  // 화면 즉시 표시 (인증 체크는 백그라운드)
 
   return (
     <div className="min-h-screen bg-[#F5F9F8] pb-24">

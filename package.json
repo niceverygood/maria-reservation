@@ -25,6 +25,7 @@
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
+    "firebase": "^12.6.0",
     "jsonwebtoken": "^9.0.2",
     "next": "16.0.7",
     "prisma": "^5.22.0",
