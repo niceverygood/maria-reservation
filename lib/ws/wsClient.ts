@@ -12,8 +12,8 @@ class WebSocketClient {
   private ws: WebSocket | null = null
   private url: string
   private reconnectAttempts = 0
-  private maxReconnectAttempts = 10
-  private reconnectDelay = 1000
+  private maxReconnectAttempts = 3  // 재연결 시도 줄임
+  private reconnectDelay = 5000     // 재연결 간격 늘림
   private messageHandlers: Set<MessageHandler> = new Set()
   private connectionHandlers: Set<ConnectionHandler> = new Set()
   private clientType: 'admin' | 'patient' = 'patient'
@@ -37,11 +37,9 @@ class WebSocketClient {
     this.isIntentionallyClosed = false
 
     try {
-      console.log(`📡 WebSocket 연결 시도: ${this.url}`)
       this.ws = new WebSocket(this.url)
 
       this.ws.onopen = () => {
-        console.log('✅ WebSocket 연결됨')
         this.reconnectAttempts = 0
         this.notifyConnectionHandlers(true)
 
@@ -65,30 +63,33 @@ class WebSocketClient {
         }
       }
 
-      this.ws.onclose = (event) => {
-        console.log(`❌ WebSocket 연결 종료: ${event.code}`)
+      this.ws.onclose = () => {
         this.notifyConnectionHandlers(false)
         this.stopPing()
 
         // 의도적 종료가 아니면 재연결
-        if (!this.isIntentionallyClosed && this.reconnectAttempts < this.maxReconnectAttempts) {
+        if (!this.isIntentionallyClosed) {
           this.scheduleReconnect()
         }
       }
 
-      this.ws.onerror = (error) => {
-        console.error('WebSocket 에러:', error)
+      this.ws.onerror = () => {
+        // WebSocket 서버 없으면 조용히 실패 (프로덕션에서 정상)
       }
-    } catch (e) {
-      console.error('WebSocket 연결 실패:', e)
+    } catch {
+      // WebSocket 서버 없으면 조용히 실패
       this.scheduleReconnect()
     }
   }
 
   private scheduleReconnect() {
     this.reconnectAttempts++
+    if (this.reconnectAttempts > this.maxReconnectAttempts) {
+      // 최대 재연결 시도 초과 - 조용히 포기 (폴링으로 폴백)
+      return
+    }
+    
     const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000)
-    console.log(`🔄 ${delay / 1000}초 후 재연결 시도... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
     
     setTimeout(() => {
       this.connect(this.clientType, this.userId)
