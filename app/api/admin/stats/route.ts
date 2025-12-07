@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
+import { getCurrentAdmin } from '@/lib/auth'
 
+/**
+ * GET /api/admin/stats
+ * 통계 조회 (최적화 - groupBy 사용)
+ */
 export async function GET(request: Request) {
   try {
+    const admin = await getCurrentAdmin()
+    if (!admin) {
+      return NextResponse.json(
+        { success: false, error: '인증이 필요합니다.' },
+        { status: 401 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
@@ -14,20 +27,17 @@ export async function GET(request: Request) {
       )
     }
 
-    const appointments = await prisma.appointment.findMany({
+    // groupBy로 한 번에 집계 (각 행을 순회하지 않음)
+    const statsResult = await prisma.appointment.groupBy({
+      by: ['status'],
       where: {
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
+        date: { gte: startDate, lte: endDate },
       },
-      select: {
-        status: true,
-      },
+      _count: { id: true },
     })
 
     const stats = {
-      total: appointments.length,
+      total: 0,
       pending: 0,
       booked: 0,
       completed: 0,
@@ -36,28 +46,17 @@ export async function GET(request: Request) {
       noShow: 0,
     }
 
-    appointments.forEach((apt) => {
-      switch (apt.status) {
-        case 'PENDING':
-          stats.pending++
-          break
-        case 'BOOKED':
-          stats.booked++
-          break
-        case 'COMPLETED':
-          stats.completed++
-          break
-        case 'CANCELLED':
-          stats.cancelled++
-          break
-        case 'REJECTED':
-          stats.rejected++
-          break
-        case 'NO_SHOW':
-          stats.noShow++
-          break
+    for (const s of statsResult) {
+      stats.total += s._count.id
+      switch (s.status) {
+        case 'PENDING': stats.pending = s._count.id; break
+        case 'BOOKED': stats.booked = s._count.id; break
+        case 'COMPLETED': stats.completed = s._count.id; break
+        case 'CANCELLED': stats.cancelled = s._count.id; break
+        case 'REJECTED': stats.rejected = s._count.id; break
+        case 'NO_SHOW': stats.noShow = s._count.id; break
       }
-    })
+    }
 
     return NextResponse.json({ success: true, stats })
   } catch (error) {
@@ -68,4 +67,3 @@ export async function GET(request: Request) {
     )
   }
 }
-

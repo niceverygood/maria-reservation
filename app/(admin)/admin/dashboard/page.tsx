@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useRealtime } from '@/contexts/RealtimeContext'
 import { formatLocalDate } from '@/lib/dateUtils'
+import { Skeleton, StatCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
+import { formatPhone, getStatusLabel, getStatusStyle } from '@/lib/utils'
 
 interface Doctor {
   id: string
@@ -41,6 +43,22 @@ interface Stats {
 
 type PeriodType = 'daily' | 'weekly' | 'monthly' | 'custom'
 
+// 캐시
+const cache = new Map<string, { data: unknown; timestamp: number }>()
+const CACHE_TTL = 30000
+
+function getCached<T>(key: string): T | null {
+  const cached = cache.get(key)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data as T
+  }
+  return null
+}
+
+function setCache(key: string, data: unknown) {
+  cache.set(key, { data, timestamp: Date.now() })
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter()
   const { refreshTrigger } = useRealtime()
@@ -56,8 +74,26 @@ export default function AdminDashboardPage() {
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
 
+  // 마지막 갱신 시간
+  const lastFetch = useRef<number>(0)
+
   // 오늘 예약 불러오기
-  const fetchTodayAppointments = useCallback(async () => {
+  const fetchTodayAppointments = useCallback(async (forceRefresh = false) => {
+    // 짧은 시간 내 중복 호출 방지
+    if (!forceRefresh && Date.now() - lastFetch.current < 1000) return
+    lastFetch.current = Date.now()
+
+    const cacheKey = 'today-appointments'
+    if (!forceRefresh) {
+      const cached = getCached<{ appointments: Appointment[]; stats: Stats }>(cacheKey)
+      if (cached) {
+        setAppointments(cached.appointments)
+        setTodayStats(cached.stats)
+        setIsLoading(false)
+        return
+      }
+    }
+
     try {
       const res = await fetch('/api/admin/appointments/today')
       const data = await res.json()
@@ -65,6 +101,7 @@ export default function AdminDashboardPage() {
       if (data.success) {
         setAppointments(data.appointments)
         setTodayStats(data.stats)
+        setCache(cacheKey, { appointments: data.appointments, stats: data.stats })
       } else if (res.status === 401) {
         router.push('/admin/login')
       }
@@ -77,7 +114,15 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchTodayAppointments()
-  }, [fetchTodayAppointments, refreshTrigger])
+  }, [fetchTodayAppointments])
+
+  // refreshTrigger 변경 시 (WebSocket 이벤트)
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      cache.clear()
+      fetchTodayAppointments(true)
+    }
+  }, [refreshTrigger, fetchTodayAppointments])
 
   // 기간별 통계 불러오기
   useEffect(() => {
@@ -100,7 +145,6 @@ export default function AdminDashboardPage() {
           case 'monthly':
             const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
             startDate = formatLocalDate(monthStart)
-            // 월별은 해당 월의 마지막 날까지 조회
             const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
             endDate = formatLocalDate(monthEnd)
             break
@@ -114,11 +158,20 @@ export default function AdminDashboardPage() {
             break
         }
 
+        const cacheKey = `period-stats-${startDate}-${endDate}`
+        const cached = getCached<Stats>(cacheKey)
+        if (cached) {
+          setPeriodStats(cached)
+          setPeriodLoading(false)
+          return
+        }
+
         const res = await fetch(`/api/admin/stats?startDate=${startDate}&endDate=${endDate}`)
         const data = await res.json()
 
         if (data.success) {
           setPeriodStats(data.stats)
+          setCache(cacheKey, data.stats)
         }
       } catch (error) {
         console.error('기간별 통계 조회 오류:', error)
@@ -142,34 +195,38 @@ export default function AdminDashboardPage() {
       const data = await res.json()
 
       if (data.success) {
+        const oldApt = appointments.find(a => a.id === appointmentId)
+        
         setAppointments((prev) =>
           prev.map((apt) =>
             apt.id === appointmentId ? { ...apt, status: newStatus } : apt
           )
         )
+        
         // 통계 업데이트
-        setTodayStats((prev) => {
-          const oldApt = appointments.find((a) => a.id === appointmentId)
-          if (!oldApt) return prev
-          
-          const newStats = { ...prev }
-          // 이전 상태에서 빼기
-          if (oldApt.status === 'PENDING') newStats.pending--
-          else if (oldApt.status === 'BOOKED') newStats.booked--
-          else if (oldApt.status === 'COMPLETED') newStats.completed--
-          else if (oldApt.status === 'CANCELLED') newStats.cancelled--
-          else if (oldApt.status === 'REJECTED') newStats.rejected--
-          else if (oldApt.status === 'NO_SHOW') newStats.noShow--
-          // 새 상태에 더하기
-          if (newStatus === 'PENDING') newStats.pending++
-          else if (newStatus === 'BOOKED') newStats.booked++
-          else if (newStatus === 'COMPLETED') newStats.completed++
-          else if (newStatus === 'CANCELLED') newStats.cancelled++
-          else if (newStatus === 'REJECTED') newStats.rejected++
-          else if (newStatus === 'NO_SHOW') newStats.noShow++
-          
-          return newStats
-        })
+        if (oldApt) {
+          setTodayStats((prev) => {
+            const newStats = { ...prev }
+            // 이전 상태에서 빼기
+            if (oldApt.status === 'PENDING') newStats.pending--
+            else if (oldApt.status === 'BOOKED') newStats.booked--
+            else if (oldApt.status === 'COMPLETED') newStats.completed--
+            else if (oldApt.status === 'CANCELLED') newStats.cancelled--
+            else if (oldApt.status === 'REJECTED') newStats.rejected--
+            else if (oldApt.status === 'NO_SHOW') newStats.noShow--
+            // 새 상태에 더하기
+            if (newStatus === 'PENDING') newStats.pending++
+            else if (newStatus === 'BOOKED') newStats.booked++
+            else if (newStatus === 'COMPLETED') newStats.completed++
+            else if (newStatus === 'CANCELLED') newStats.cancelled++
+            else if (newStatus === 'REJECTED') newStats.rejected++
+            else if (newStatus === 'NO_SHOW') newStats.noShow++
+            
+            return newStats
+          })
+        }
+        
+        cache.clear()
       }
     } catch (error) {
       console.error('상태 변경 오류:', error)
@@ -178,53 +235,12 @@ export default function AdminDashboardPage() {
     }
   }
 
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-700'
-      case 'BOOKED':
-        return 'bg-blue-100 text-blue-700'
-      case 'COMPLETED':
-        return 'bg-green-100 text-green-700'
-      case 'CANCELLED':
-        return 'bg-gray-100 text-gray-600'
-      case 'REJECTED':
-        return 'bg-red-100 text-red-700'
-      case 'NO_SHOW':
-        return 'bg-orange-100 text-orange-700'
-      default:
-        return 'bg-gray-100 text-gray-600'
-    }
-  }
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'PENDING': return '대기'
-      case 'BOOKED': return '확정'
-      case 'COMPLETED': return '완료'
-      case 'CANCELLED': return '취소'
-      case 'REJECTED': return '거절'
-      case 'NO_SHOW': return '노쇼'
-      default: return status
-    }
-  }
-
-  const formatPhone = (phone: string) => {
-    if (phone.length === 11) {
-      return `${phone.slice(0, 3)}-${phone.slice(3, 7)}-${phone.slice(7)}`
-    }
-    return phone
-  }
-
   const getPeriodLabel = () => {
     const today = new Date()
     switch (periodType) {
-      case 'daily':
-        return '오늘'
-      case 'weekly':
-        return '최근 7일'
-      case 'monthly':
-        return `${today.getMonth() + 1}월`
+      case 'daily': return '오늘'
+      case 'weekly': return '최근 7일'
+      case 'monthly': return `${today.getMonth() + 1}월`
       case 'custom':
         if (customStartDate && customEndDate) {
           return `${customStartDate} ~ ${customEndDate}`
@@ -240,12 +256,27 @@ export default function AdminDashboardPage() {
     weekday: 'long'
   })
 
+  // 로딩 스켈레톤
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="inline-block w-8 h-8 border-4 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-2 text-sm text-[#64748B]">로딩 중...</p>
+      <div className="animate-pulse pb-20 md:pb-0">
+        <div className="mb-6">
+          <Skeleton className="h-8 w-32 mb-2" />
+          <Skeleton className="h-5 w-48" />
+        </div>
+        <div className="mb-6">
+          <Skeleton className="h-6 w-24 mb-3" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <StatCardSkeleton key={i} />)}
+          </div>
+        </div>
+        <div className="card">
+          <Skeleton className="h-6 w-32 mb-4" />
+          <table className="w-full">
+            <tbody>
+              {[1, 2, 3, 4, 5].map(i => <TableRowSkeleton key={i} cols={6} />)}
+            </tbody>
+          </table>
         </div>
       </div>
     )
@@ -287,46 +318,19 @@ export default function AdminDashboardPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <h2 className="text-lg font-semibold text-[#1E293B]">📈 기간별 통계</h2>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setPeriodType('daily')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                periodType === 'daily'
-                  ? 'bg-[#0066CC] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              일별
-            </button>
-            <button
-              onClick={() => setPeriodType('weekly')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                periodType === 'weekly'
-                  ? 'bg-[#0066CC] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              주별
-            </button>
-            <button
-              onClick={() => setPeriodType('monthly')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                periodType === 'monthly'
-                  ? 'bg-[#0066CC] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              월별
-            </button>
-            <button
-              onClick={() => setPeriodType('custom')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                periodType === 'custom'
-                  ? 'bg-[#0066CC] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              기간 선택
-            </button>
+            {(['daily', 'weekly', 'monthly', 'custom'] as PeriodType[]).map(type => (
+              <button
+                key={type}
+                onClick={() => setPeriodType(type)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                  periodType === type
+                    ? 'bg-[#0066CC] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {type === 'daily' ? '일별' : type === 'weekly' ? '주별' : type === 'monthly' ? '월별' : '기간 선택'}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -361,48 +365,21 @@ export default function AdminDashboardPage() {
 
         <div className="card overflow-hidden">
           <div className="grid grid-cols-2 md:grid-cols-7 gap-px bg-gray-200">
-            {/* 대기 */}
-            <div className="bg-white p-4 text-center">
-              <div className="w-3 h-3 rounded-full bg-yellow-400 mx-auto mb-2"></div>
-              <p className="text-2xl font-bold text-yellow-600">{periodStats.pending}</p>
-              <p className="text-xs text-gray-500 mt-1">대기</p>
-            </div>
-            {/* 확정 */}
-            <div className="bg-white p-4 text-center">
-              <div className="w-3 h-3 rounded-full bg-blue-500 mx-auto mb-2"></div>
-              <p className="text-2xl font-bold text-blue-600">{periodStats.booked}</p>
-              <p className="text-xs text-gray-500 mt-1">확정</p>
-            </div>
-            {/* 완료 */}
-            <div className="bg-white p-4 text-center">
-              <div className="w-3 h-3 rounded-full bg-green-500 mx-auto mb-2"></div>
-              <p className="text-2xl font-bold text-green-600">{periodStats.completed}</p>
-              <p className="text-xs text-gray-500 mt-1">완료</p>
-            </div>
-            {/* 취소 */}
-            <div className="bg-white p-4 text-center">
-              <div className="w-3 h-3 rounded-full bg-gray-400 mx-auto mb-2"></div>
-              <p className="text-2xl font-bold text-gray-600">{periodStats.cancelled}</p>
-              <p className="text-xs text-gray-500 mt-1">취소</p>
-            </div>
-            {/* 거절 */}
-            <div className="bg-white p-4 text-center">
-              <div className="w-3 h-3 rounded-full bg-red-400 mx-auto mb-2"></div>
-              <p className="text-2xl font-bold text-red-600">{periodStats.rejected}</p>
-              <p className="text-xs text-gray-500 mt-1">거절</p>
-            </div>
-            {/* 노쇼 */}
-            <div className="bg-white p-4 text-center">
-              <div className="w-3 h-3 rounded-full bg-orange-500 mx-auto mb-2"></div>
-              <p className="text-2xl font-bold text-orange-600">{periodStats.noShow}</p>
-              <p className="text-xs text-gray-500 mt-1">노쇼</p>
-            </div>
-            {/* 전체 */}
-            <div className="bg-white p-4 text-center col-span-2 md:col-span-1">
-              <div className="w-3 h-3 rounded-full bg-[#0066CC] mx-auto mb-2"></div>
-              <p className="text-2xl font-bold text-[#0066CC]">{periodStats.total}</p>
-              <p className="text-xs text-gray-500 mt-1">전체</p>
-            </div>
+            {[
+              { color: 'bg-yellow-400', value: periodStats.pending, label: '대기', textColor: 'text-yellow-600' },
+              { color: 'bg-blue-500', value: periodStats.booked, label: '확정', textColor: 'text-blue-600' },
+              { color: 'bg-green-500', value: periodStats.completed, label: '완료', textColor: 'text-green-600' },
+              { color: 'bg-gray-400', value: periodStats.cancelled, label: '취소', textColor: 'text-gray-600' },
+              { color: 'bg-red-400', value: periodStats.rejected, label: '거절', textColor: 'text-red-600' },
+              { color: 'bg-orange-500', value: periodStats.noShow, label: '노쇼', textColor: 'text-orange-600' },
+              { color: 'bg-[#0066CC]', value: periodStats.total, label: '전체', textColor: 'text-[#0066CC]', colSpan: 'col-span-2 md:col-span-1' },
+            ].map(({ color, value, label, textColor, colSpan }) => (
+              <div key={label} className={`bg-white p-4 text-center ${colSpan || ''}`}>
+                <div className={`w-3 h-3 rounded-full ${color} mx-auto mb-2`}></div>
+                <p className={`text-2xl font-bold ${textColor}`}>{value}</p>
+                <p className="text-xs text-gray-500 mt-1">{label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

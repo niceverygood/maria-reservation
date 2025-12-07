@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useRealtime } from '@/contexts/RealtimeContext'
@@ -42,6 +42,26 @@ interface DateCount {
 
 type ViewMode = 'calendar' | 'list'
 
+// 캐시 저장소
+const cache = new Map<string, { data: unknown; timestamp: number }>()
+const CACHE_TTL = 30000 // 30초
+
+function getCached<T>(key: string): T | null {
+  const cached = cache.get(key)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data as T
+  }
+  return null
+}
+
+function setCache(key: string, data: unknown) {
+  cache.set(key, { data, timestamp: Date.now() })
+}
+
+function clearCache() {
+  cache.clear()
+}
+
 export default function AdminReservationsPage() {
   const router = useRouter()
   const { refreshTrigger } = useRealtime()
@@ -49,8 +69,8 @@ export default function AdminReservationsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null)
-  const [wsConnected, setWsConnected] = useState(false)
 
   // 캘린더 상태
   const today = new Date()
@@ -68,29 +88,54 @@ export default function AdminReservationsPage() {
     search: '',
   })
 
-  // 의사 목록 불러오기
+  // 마지막 갱신 시간
+  const lastRefresh = useRef<number>(0)
+
+  // 초기 데이터 로드 (의사 목록 + 날짜별 건수 병렬 로드)
   useEffect(() => {
-    const fetchDoctors = async () => {
+    const loadInitialData = async () => {
       try {
-        const res = await fetch('/api/patient/doctors')
-        const data = await res.json()
-        if (data.success) {
-          setDoctors(data.doctors)
+        const [doctorsRes, countsRes] = await Promise.all([
+          fetch('/api/patient/doctors'),
+          fetch(`/api/admin/appointments/count-by-date?year=${currentYear}&month=${currentMonth}`),
+        ])
+
+        const [doctorsData, countsData] = await Promise.all([
+          doctorsRes.json(),
+          countsRes.json(),
+        ])
+
+        if (doctorsData.success) {
+          setDoctors(doctorsData.doctors)
+        }
+        if (countsData.success) {
+          setDateCounts(countsData.counts)
         }
       } catch (error) {
-        console.error('의사 목록 조회 오류:', error)
+        console.error('초기 데이터 로드 오류:', error)
+      } finally {
+        setIsInitialLoad(false)
       }
     }
-    fetchDoctors()
-  }, [])
 
-  // 날짜별 예약 건수 불러오기
+    loadInitialData()
+  }, []) // 최초 1회만
+
+  // 월 변경 시 날짜별 건수 로드
   const fetchDateCounts = useCallback(async () => {
+    const cacheKey = `counts-${currentYear}-${currentMonth}`
+    const cached = getCached<Record<string, DateCount>>(cacheKey)
+    if (cached) {
+      setDateCounts(cached)
+      return
+    }
+
     try {
       const res = await fetch(`/api/admin/appointments/count-by-date?year=${currentYear}&month=${currentMonth}`)
       const data = await res.json()
       if (data.success) {
         setDateCounts(data.counts)
+        setCache(cacheKey, data.counts)
       }
     } catch (error) {
       console.error('날짜별 예약 건수 조회 오류:', error)
@@ -98,16 +143,35 @@ export default function AdminReservationsPage() {
   }, [currentYear, currentMonth])
 
   useEffect(() => {
-    fetchDateCounts()
-  }, [fetchDateCounts, refreshTrigger])
+    if (!isInitialLoad) {
+      fetchDateCounts()
+    }
+  }, [currentYear, currentMonth, isInitialLoad])
 
-  // 예약 목록 불러오기
-  const fetchAppointments = useCallback(async () => {
+  // 예약 목록 로드
+  const fetchAppointments = useCallback(async (forceRefresh = false) => {
+    // 짧은 시간 내 중복 호출 방지
+    if (!forceRefresh && Date.now() - lastRefresh.current < 1000) {
+      return
+    }
+    lastRefresh.current = Date.now()
+
+    const dateToFetch = viewMode === 'calendar' ? selectedDate : filters.date
+    const cacheKey = `appointments-${dateToFetch}-${filters.doctorId}-${filters.status}-${filters.search}`
+
+    if (!forceRefresh) {
+      const cached = getCached<Appointment[]>(cacheKey)
+      if (cached) {
+        setAppointments(cached)
+        setIsLoading(false)
+        return
+      }
+    }
+
     setIsLoading(true)
     try {
-      const dateToFetch = viewMode === 'calendar' ? selectedDate : filters.date
       const params = new URLSearchParams()
-      if (dateToFetch) params.append('date', dateToFetch)
+      params.append('date', dateToFetch)
       if (filters.doctorId) params.append('doctorId', filters.doctorId)
       if (filters.status) params.append('status', filters.status)
       if (filters.search) params.append('search', filters.search)
@@ -117,6 +181,7 @@ export default function AdminReservationsPage() {
 
       if (data.success) {
         setAppointments(data.appointments)
+        setCache(cacheKey, data.appointments)
       } else if (res.status === 401) {
         router.push('/admin/login')
       }
@@ -128,17 +193,28 @@ export default function AdminReservationsPage() {
   }, [filters, selectedDate, viewMode, router])
 
   useEffect(() => {
-    fetchAppointments()
-  }, [fetchAppointments, refreshTrigger])
+    if (!isInitialLoad) {
+      fetchAppointments()
+    }
+  }, [selectedDate, filters, viewMode, isInitialLoad])
+
+  // refreshTrigger 변경 시 (WebSocket 이벤트)
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      clearCache()
+      fetchAppointments(true)
+      fetchDateCounts()
+    }
+  }, [refreshTrigger])
 
   // WebSocket 실시간 동기화
-  const { isConnected } = useWebSocket({
+  useWebSocket({
     onNewAppointment: (payload) => {
       console.log('🔔 새 예약 수신:', payload)
-      // 현재 선택된 날짜와 같으면 목록에 추가, 아니면 달력만 업데이트
+      clearCache()
       fetchDateCounts()
       if (payload?.date === selectedDate) {
-        fetchAppointments()
+        fetchAppointments(true)
       }
     },
     onCancelAppointment: (payload) => {
@@ -147,6 +223,7 @@ export default function AdminReservationsPage() {
         setAppointments(prev =>
           prev.map(apt => apt.id === payload.id ? { ...apt, status: 'CANCELLED' } : apt)
         )
+        clearCache()
         fetchDateCounts()
       }
     },
@@ -156,19 +233,16 @@ export default function AdminReservationsPage() {
         setAppointments(prev =>
           prev.map(apt => apt.id === payload.id ? { ...apt, status: payload.status as string } : apt)
         )
+        clearCache()
         fetchDateCounts()
       }
     },
-    onReschedule: (payload) => {
-      console.log('📝 예약 변경 수신:', payload)
+    onReschedule: () => {
+      clearCache()
       fetchDateCounts()
-      fetchAppointments()
+      fetchAppointments(true)
     },
   })
-
-  useEffect(() => {
-    setWsConnected(isConnected)
-  }, [isConnected])
 
   // 상태 변경 핸들러
   const handleStatusChange = async (appointmentId: string, newStatus: string) => {
@@ -187,7 +261,7 @@ export default function AdminReservationsPage() {
             apt.id === appointmentId ? { ...apt, status: newStatus } : apt
           )
         )
-        // 달력 건수도 즉시 업데이트
+        clearCache()
         fetchDateCounts()
       }
     } catch (error) {
@@ -202,20 +276,17 @@ export default function AdminReservationsPage() {
     const days: { date: Date | null; isCurrentMonth: boolean }[] = []
     const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
     const firstDayOfMonth = new Date(currentYear, currentMonth - 1, 1).getDay()
-    const adjustedFirstDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1 // 월요일 시작
+    const adjustedFirstDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1
 
-    // 이전 달
     const prevMonthDays = new Date(currentYear, currentMonth - 1, 0).getDate()
     for (let i = adjustedFirstDay - 1; i >= 0; i--) {
       days.push({ date: new Date(currentYear, currentMonth - 2, prevMonthDays - i), isCurrentMonth: false })
     }
 
-    // 현재 달
     for (let i = 1; i <= daysInMonth; i++) {
       days.push({ date: new Date(currentYear, currentMonth - 1, i), isCurrentMonth: true })
     }
 
-    // 다음 달 (6주 채우기)
     const remaining = 42 - days.length
     for (let i = 1; i <= remaining; i++) {
       days.push({ date: new Date(currentYear, currentMonth, i), isCurrentMonth: false })
@@ -281,9 +352,8 @@ export default function AdminReservationsPage() {
       const data = await res.json()
       if (data.success) {
         setAppointments(prev => prev.map(apt => apt.id === appointmentId ? { ...apt, status: 'BOOKED' } : apt))
-        // 달력 건수도 즉시 업데이트
+        clearCache()
         fetchDateCounts()
-        alert('예약이 확정되었습니다.')
       } else {
         alert(data.error || '승인 실패')
       }
@@ -298,7 +368,7 @@ export default function AdminReservationsPage() {
   // 예약 거절 핸들러
   const handleReject = async (appointmentId: string) => {
     const reason = prompt('거절 사유를 입력하세요 (선택사항):')
-    if (reason === null) return // 취소 클릭
+    if (reason === null) return
     setStatusUpdating(appointmentId)
     try {
       const res = await fetch(`/api/admin/appointments/${appointmentId}/reject`, {
@@ -309,9 +379,8 @@ export default function AdminReservationsPage() {
       const data = await res.json()
       if (data.success) {
         setAppointments(prev => prev.map(apt => apt.id === appointmentId ? { ...apt, status: 'REJECTED' } : apt))
-        // 달력 건수도 즉시 업데이트
+        clearCache()
         fetchDateCounts()
-        alert('예약이 거절되었습니다.')
       } else {
         alert(data.error || '거절 실패')
       }
@@ -334,12 +403,25 @@ export default function AdminReservationsPage() {
   const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
   const dayNames = ['월', '화', '수', '목', '금', '토', '일']
 
+  // 초기 로딩 스켈레톤
+  if (isInitialLoad) {
+    return (
+      <div className="animate-pulse">
+        <div className="h-8 w-48 bg-gray-200 rounded mb-6"></div>
+        <div className="grid grid-cols-7 gap-2">
+          {Array(35).fill(0).map((_, i) => (
+            <div key={i} className="h-16 bg-gray-100 rounded"></div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="animate-fade-in pb-20 md:pb-0">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-[#1E293B]">예약 관리</h1>
         <div className="flex items-center gap-2">
-          {/* 뷰 모드 토글 */}
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setViewMode('calendar')}
@@ -368,30 +450,19 @@ export default function AdminReservationsPage() {
       {viewMode === 'calendar' && (
         <div className="flex flex-wrap items-center gap-4 mb-4 p-3 bg-white rounded-lg border border-gray-100">
           <span className="text-sm text-gray-500 font-medium">상태:</span>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-yellow-400"></span>
-            <span className="text-xs text-gray-600">대기</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-blue-500"></span>
-            <span className="text-xs text-gray-600">확정</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-green-500"></span>
-            <span className="text-xs text-gray-600">완료</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-gray-400"></span>
-            <span className="text-xs text-gray-600">취소</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-red-400"></span>
-            <span className="text-xs text-gray-600">거절</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-purple-500"></span>
-            <span className="text-xs text-gray-600">노쇼</span>
-          </div>
+          {[
+            { color: 'bg-yellow-400', label: '대기' },
+            { color: 'bg-blue-500', label: '확정' },
+            { color: 'bg-green-500', label: '완료' },
+            { color: 'bg-gray-400', label: '취소' },
+            { color: 'bg-red-400', label: '거절' },
+            { color: 'bg-purple-500', label: '노쇼' },
+          ].map(({ color, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <span className={`w-3 h-3 rounded ${color}`}></span>
+              <span className="text-xs text-gray-600">{label}</span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -400,7 +471,6 @@ export default function AdminReservationsPage() {
         <div className="flex flex-col md:flex-row gap-6">
           {/* 캘린더 */}
           <div className="flex-1 min-w-0 card">
-            {/* 캘린더 헤더 */}
             <div className="flex items-center justify-between mb-4">
               <button onClick={goToPrevMonth} className="p-2 hover:bg-gray-100 rounded-lg">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -417,7 +487,6 @@ export default function AdminReservationsPage() {
               </button>
             </div>
 
-            {/* 요일 헤더 */}
             <div className="grid grid-cols-7 mb-2">
               {dayNames.map((day, idx) => (
                 <div key={day} className={`text-center text-sm font-medium py-2 ${
@@ -428,7 +497,6 @@ export default function AdminReservationsPage() {
               ))}
             </div>
 
-            {/* 날짜 그리드 */}
             <div className="grid grid-cols-7 gap-1">
               {calendarDays.map((day, idx) => {
                 if (!day.date) return <div key={idx} />
@@ -462,40 +530,19 @@ export default function AdminReservationsPage() {
                     
                     {count && count.total > 0 && (
                       <div className="mt-1 flex flex-wrap gap-0.5">
-                        {/* 대기 - 노란색 */}
                         {count.pending > 0 && (
                           <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-yellow-400 text-white">
                             {count.pending}
                           </span>
                         )}
-                        {/* 확정 - 파란색 */}
                         {count.booked > 0 && (
                           <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-blue-500 text-white">
                             {count.booked}
                           </span>
                         )}
-                        {/* 완료 - 초록색 */}
                         {count.completed > 0 && (
                           <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-green-500 text-white">
                             {count.completed}
-                          </span>
-                        )}
-                        {/* 취소 - 회색 */}
-                        {count.cancelled > 0 && (
-                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-gray-400 text-white">
-                            {count.cancelled}
-                          </span>
-                        )}
-                        {/* 거절 - 빨간색 */}
-                        {count.rejected > 0 && (
-                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-red-400 text-white">
-                            {count.rejected}
-                          </span>
-                        )}
-                        {/* 노쇼 - 보라색 */}
-                        {count.noShow > 0 && (
-                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-purple-500 text-white">
-                            {count.noShow}
                           </span>
                         )}
                       </div>
@@ -513,8 +560,13 @@ export default function AdminReservationsPage() {
             </h3>
 
             {isLoading ? (
-              <div className="text-center py-8">
-                <div className="inline-block w-6 h-6 border-2 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="animate-pulse p-3 bg-gray-100 rounded-lg">
+                    <div className="h-4 bg-gray-200 rounded w-16 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-24"></div>
+                  </div>
+                ))}
               </div>
             ) : appointments.length > 0 ? (
               <div className="space-y-3 max-h-[500px] overflow-y-auto">
@@ -523,9 +575,6 @@ export default function AdminReservationsPage() {
                     apt.status === 'PENDING' ? 'bg-yellow-50 border border-yellow-200' : 
                     apt.status === 'BOOKED' ? 'bg-blue-50 border border-blue-200' :
                     apt.status === 'COMPLETED' ? 'bg-green-50 border border-green-200' :
-                    apt.status === 'CANCELLED' ? 'bg-gray-100 border border-gray-200' :
-                    apt.status === 'REJECTED' ? 'bg-red-50 border border-red-200' :
-                    apt.status === 'NO_SHOW' ? 'bg-orange-50 border border-orange-200' :
                     'bg-gray-50'
                   }`}>
                     <div className="flex items-center justify-between mb-2">
@@ -540,64 +589,48 @@ export default function AdminReservationsPage() {
                       <p className="text-xs text-gray-400 mt-1">{formatPhone(apt.patient.phone)}</p>
                     )}
                     
-                    {/* PENDING 상태: 확정/거절 버튼 */}
                     {apt.status === 'PENDING' && (
                       <div className="mt-3 flex gap-2">
                         <button
                           onClick={() => handleApprove(apt.id)}
                           disabled={statusUpdating === apt.id}
-                          className="flex-1 py-2 text-xs font-bold bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                          className="flex-1 py-2 text-xs font-bold bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
                         >
                           ✓ 확정
                         </button>
                         <button
                           onClick={() => handleReject(apt.id)}
                           disabled={statusUpdating === apt.id}
-                          className="flex-1 py-2 text-xs font-bold bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50 transition-colors"
+                          className="flex-1 py-2 text-xs font-bold bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
                         >
                           ✕ 거절
                         </button>
                       </div>
                     )}
                     
-                    {/* BOOKED 상태: 완료/노쇼/취소 버튼 */}
                     {apt.status === 'BOOKED' && (
                       <div className="mt-3 flex gap-1">
                         <button
                           onClick={() => handleStatusChange(apt.id, 'COMPLETED')}
                           disabled={statusUpdating === apt.id}
-                          className="flex-1 py-2 text-xs font-bold bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
+                          className="flex-1 py-2 text-xs font-bold bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
                         >
                           ✓ 완료
                         </button>
                         <button
                           onClick={() => handleStatusChange(apt.id, 'NO_SHOW')}
                           disabled={statusUpdating === apt.id}
-                          className="flex-1 py-2 text-xs font-bold bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                          className="flex-1 py-2 text-xs font-bold bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
                         >
                           노쇼
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm('예약을 취소하시겠습니까?')) {
-                              handleStatusChange(apt.id, 'CANCELLED')
-                            }
-                          }}
+                          onClick={() => confirm('취소하시겠습니까?') && handleStatusChange(apt.id, 'CANCELLED')}
                           disabled={statusUpdating === apt.id}
-                          className="flex-1 py-2 text-xs font-bold bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50 transition-colors"
+                          className="flex-1 py-2 text-xs font-bold bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
                         >
                           취소
                         </button>
-                      </div>
-                    )}
-
-                    {/* 완료/취소/노쇼 상태는 읽기 전용 */}
-                    {['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(apt.status) && (
-                      <div className="mt-2 text-xs text-gray-400 text-center">
-                        {apt.status === 'COMPLETED' && '진료 완료됨'}
-                        {apt.status === 'CANCELLED' && '취소됨'}
-                        {apt.status === 'REJECTED' && '거절됨'}
-                        {apt.status === 'NO_SHOW' && '미방문 처리됨'}
                       </div>
                     )}
                   </div>
@@ -619,7 +652,6 @@ export default function AdminReservationsPage() {
       {/* 목록 뷰 */}
       {viewMode === 'list' && (
         <>
-          {/* 필터 */}
           <div className="card mb-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
@@ -641,7 +673,7 @@ export default function AdminReservationsPage() {
                   <option value="">전체</option>
                   {doctors.map((doctor) => (
                     <option key={doctor.id} value={doctor.id}>
-                      {doctor.name} ({doctor.department})
+                      {doctor.name}
                     </option>
                   ))}
                 </select>
@@ -658,8 +690,6 @@ export default function AdminReservationsPage() {
                   <option value="BOOKED">확정</option>
                   <option value="COMPLETED">완료</option>
                   <option value="CANCELLED">취소</option>
-                  <option value="REJECTED">거절</option>
-                  <option value="NO_SHOW">노쇼</option>
                 </select>
               </div>
               <div>
@@ -667,7 +697,7 @@ export default function AdminReservationsPage() {
                 <input
                   type="text"
                   className="input-field text-sm py-2"
-                  placeholder="환자명 또는 전화번호"
+                  placeholder="환자명/전화번호"
                   value={filters.search}
                   onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 />
@@ -675,12 +705,10 @@ export default function AdminReservationsPage() {
             </div>
           </div>
 
-          {/* 예약 목록 */}
           <div className="card">
             {isLoading ? (
               <div className="text-center py-8">
                 <div className="inline-block w-8 h-8 border-4 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
-                <p className="mt-2 text-sm text-[#64748B]">로딩 중...</p>
               </div>
             ) : appointments.length > 0 ? (
               <div className="overflow-x-auto">
@@ -696,70 +724,38 @@ export default function AdminReservationsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {appointments.map((appointment) => (
-                      <tr key={appointment.id} className={`border-b border-gray-50 ${
-                        appointment.status === 'PENDING' ? 'bg-yellow-50' : 'hover:bg-gray-50'
+                    {appointments.map((apt) => (
+                      <tr key={apt.id} className={`border-b border-gray-50 ${
+                        apt.status === 'PENDING' ? 'bg-yellow-50' : 'hover:bg-gray-50'
                       }`}>
-                        <td className="py-3 px-2 text-sm font-medium text-[#1E293B]">{appointment.time}</td>
-                        <td className="py-3 px-2 text-sm text-[#1E293B]">{appointment.patient.name}</td>
-                        <td className="py-3 px-2 text-sm text-[#64748B] hidden md:table-cell">{formatPhone(appointment.patient.phone || '')}</td>
-                        <td className="py-3 px-2 text-sm text-[#64748B]">{appointment.doctor.name}</td>
+                        <td className="py-3 px-2 text-sm font-medium">{apt.time}</td>
+                        <td className="py-3 px-2 text-sm">{apt.patient.name}</td>
+                        <td className="py-3 px-2 text-sm text-gray-500 hidden md:table-cell">{formatPhone(apt.patient.phone)}</td>
+                        <td className="py-3 px-2 text-sm text-gray-500">{apt.doctor.name}</td>
                         <td className="py-3 px-2">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusStyle(appointment.status)}`}>
-                            {getStatusLabel(appointment.status)}
+                          <span className={`px-2 py-1 text-xs rounded-full ${getStatusStyle(apt.status)}`}>
+                            {getStatusLabel(apt.status)}
                           </span>
                         </td>
                         <td className="py-3 px-2">
                           <div className="flex gap-1">
-                            {/* PENDING: 확정/거절 */}
-                            {appointment.status === 'PENDING' && (
+                            {apt.status === 'PENDING' && (
                               <>
-                                <button
-                                  onClick={() => handleApprove(appointment.id)}
-                                  disabled={statusUpdating === appointment.id}
-                                  className="px-2 py-1 text-xs font-medium bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-                                >
-                                  확정
-                                </button>
-                                <button
-                                  onClick={() => handleReject(appointment.id)}
-                                  disabled={statusUpdating === appointment.id}
-                                  className="px-2 py-1 text-xs font-medium bg-gray-400 text-white rounded hover:bg-gray-500 disabled:opacity-50"
-                                >
-                                  거절
-                                </button>
+                                <button onClick={() => handleApprove(apt.id)} disabled={statusUpdating === apt.id}
+                                  className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50">확정</button>
+                                <button onClick={() => handleReject(apt.id)} disabled={statusUpdating === apt.id}
+                                  className="px-2 py-1 text-xs bg-gray-400 text-white rounded hover:bg-gray-500 disabled:opacity-50">거절</button>
                               </>
                             )}
-                            {/* BOOKED: 완료/노쇼/취소 */}
-                            {appointment.status === 'BOOKED' && (
+                            {apt.status === 'BOOKED' && (
                               <>
-                                <button
-                                  onClick={() => handleStatusChange(appointment.id, 'COMPLETED')}
-                                  disabled={statusUpdating === appointment.id}
-                                  className="px-2 py-1 text-xs font-medium bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-                                >
-                                  완료
-                                </button>
-                                <button
-                                  onClick={() => handleStatusChange(appointment.id, 'NO_SHOW')}
-                                  disabled={statusUpdating === appointment.id}
-                                  className="px-2 py-1 text-xs font-medium bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50"
-                                >
-                                  노쇼
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    if (confirm('취소하시겠습니까?')) handleStatusChange(appointment.id, 'CANCELLED')
-                                  }}
-                                  disabled={statusUpdating === appointment.id}
-                                  className="px-2 py-1 text-xs font-medium bg-gray-400 text-white rounded hover:bg-gray-500 disabled:opacity-50"
-                                >
-                                  취소
-                                </button>
+                                <button onClick={() => handleStatusChange(apt.id, 'COMPLETED')} disabled={statusUpdating === apt.id}
+                                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50">완료</button>
+                                <button onClick={() => handleStatusChange(apt.id, 'NO_SHOW')} disabled={statusUpdating === apt.id}
+                                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50">노쇼</button>
                               </>
                             )}
-                            {/* 완료/취소된 상태 */}
-                            {['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(appointment.status) && (
+                            {['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(apt.status) && (
                               <span className="text-xs text-gray-400">-</span>
                             )}
                           </div>
@@ -770,14 +766,9 @@ export default function AdminReservationsPage() {
                 </table>
               </div>
             ) : (
-              <div className="text-center py-8 text-[#64748B]">
-                검색 조건에 맞는 예약이 없습니다.
-              </div>
+              <div className="text-center py-8 text-gray-500">검색 조건에 맞는 예약이 없습니다.</div>
             )}
-
-            <div className="mt-4 text-sm text-[#64748B]">
-              총 {appointments.length}건
-            </div>
+            <div className="mt-4 text-sm text-gray-500">총 {appointments.length}건</div>
           </div>
         </>
       )}

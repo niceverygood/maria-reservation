@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePatientRealtime } from '@/contexts/PatientRealtimeContext'
 import { useWebSocket } from '@/lib/ws/useWebSocket'
+import { Skeleton, AppointmentCardSkeleton } from '@/components/ui/Skeleton'
 
 interface PatientInfo {
   id: string
@@ -25,6 +26,10 @@ interface Appointment {
   }
 }
 
+// 캐시
+const cache = new Map<string, { data: unknown; timestamp: number }>()
+const CACHE_TTL = 30000
+
 export default function MyPage() {
   const router = useRouter()
   const { refreshTrigger } = usePatientRealtime()
@@ -32,14 +37,42 @@ export default function MyPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
+  const lastFetch = useRef<number>(0)
 
   // 데이터 가져오기 함수
-  const fetchData = useCallback(async (showLoading = true) => {
+  const fetchData = useCallback(async (showLoading = true, forceRefresh = false) => {
+    // 중복 호출 방지
+    if (!forceRefresh && Date.now() - lastFetch.current < 1000) return
+    lastFetch.current = Date.now()
+
     if (showLoading) setIsLoading(true)
+    
     try {
-      // 환자 정보 가져오기
-      const authRes = await fetch('/api/auth/me')
-      const authData = await authRes.json()
+      // 캐시 확인
+      if (!forceRefresh) {
+        const cachedData = cache.get('mypage-data')
+        if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
+          const { patient: cachedPatient, appointments: cachedAppointments } = cachedData.data as {
+            patient: PatientInfo
+            appointments: Appointment[]
+          }
+          setPatient(cachedPatient)
+          setAppointments(cachedAppointments)
+          setIsLoading(false)
+          return
+        }
+      }
+
+      // 병렬로 데이터 로드
+      const [authRes, appointRes] = await Promise.all([
+        fetch('/api/auth/me'),
+        fetch('/api/patient/appointments/my'),
+      ])
+
+      const [authData, appointData] = await Promise.all([
+        authRes.json(),
+        appointRes.json(),
+      ])
       
       if (!authData.success) {
         router.push('/login?redirect=/mypage')
@@ -48,13 +81,15 @@ export default function MyPage() {
       
       setPatient(authData.patient)
       
-      // 예약 목록 가져오기
-      const appointRes = await fetch('/api/patient/appointments/my')
-      const appointData = await appointRes.json()
-      
       if (appointData.success) {
         setAppointments(appointData.appointments)
       }
+
+      // 캐시에 저장
+      cache.set('mypage-data', {
+        data: { patient: authData.patient, appointments: appointData.appointments || [] },
+        timestamp: Date.now(),
+      })
     } catch (err) {
       console.error('데이터 로드 실패:', err)
     } finally {
@@ -70,26 +105,27 @@ export default function MyPage() {
   // 실시간 업데이트 시 데이터 새로고침 (로딩 표시 없이)
   useEffect(() => {
     if (refreshTrigger > 0) {
-      fetchData(false)
+      cache.clear()
+      fetchData(false, true)
     }
   }, [refreshTrigger, fetchData])
 
   // WebSocket 실시간 동기화
   useWebSocket({
     onStatusUpdate: (payload) => {
-      console.log('🔄 상태 변경 수신:', payload)
       if (payload?.id && payload?.status) {
         setAppointments(prev =>
           prev.map(apt => apt.id === payload.id ? { ...apt, status: payload.status as string } : apt)
         )
+        cache.clear()
       }
     },
     onCancelAppointment: (payload) => {
-      console.log('❌ 예약 취소 수신:', payload)
       if (payload?.id) {
         setAppointments(prev =>
           prev.map(apt => apt.id === payload.id ? { ...apt, status: 'CANCELLED' } : apt)
         )
+        cache.clear()
       }
     },
   })
@@ -101,7 +137,7 @@ export default function MyPage() {
       const res = await fetch('/api/auth/logout', { method: 'POST' })
       const data = await res.json()
       if (data.success) {
-        // 홈으로 이동 (새로고침하여 세션 초기화)
+        cache.clear()
         window.location.href = '/'
       }
     } catch (err) {
@@ -122,6 +158,7 @@ export default function MyPage() {
         setAppointments(prev =>
           prev.map(a => a.id === appointmentId ? { ...a, status: 'CANCELLED' } : a)
         )
+        cache.clear()
         alert('예약이 취소되었습니다.')
       } else {
         alert(data.error || '예약 취소에 실패했습니다.')
@@ -169,22 +206,54 @@ export default function MyPage() {
     }
   }
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  
-  // 예정된 예약: PENDING 또는 BOOKED 상태이면서 미래 날짜
-  const upcomingAppointments = appointments.filter(
-    a => new Date(a.date) >= today && (a.status === 'PENDING' || a.status === 'BOOKED')
-  )
-  // 지난 예약: 과거 날짜 또는 완료/취소/거절 상태
-  const pastAppointments = appointments.filter(
-    a => new Date(a.date) < today || !['PENDING', 'BOOKED'].includes(a.status)
-  )
+  // 메모이제이션된 예약 분류
+  const { upcomingAppointments, pastAppointments } = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    return {
+      upcomingAppointments: appointments.filter(
+        a => new Date(a.date) >= today && (a.status === 'PENDING' || a.status === 'BOOKED')
+      ),
+      pastAppointments: appointments.filter(
+        a => new Date(a.date) < today || !['PENDING', 'BOOKED'].includes(a.status)
+      ),
+    }
+  }, [appointments])
 
+  // 로딩 스켈레톤
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F9F8]">
-        <div className="w-8 h-8 border-4 border-[#5B9A8B] border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#F5F9F8] pb-24">
+        <header className="header-gradient px-5 pt-6 pb-6">
+          <Skeleton className="h-7 w-28 bg-white/30" />
+        </header>
+        <main className="px-5 -mt-2">
+          <div className="card mb-4 animate-pulse">
+            <div className="flex items-center gap-4">
+              <Skeleton className="w-16 h-16 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="card py-4 text-center animate-pulse">
+                <Skeleton className="w-10 h-10 mx-auto rounded-full mb-2" />
+                <Skeleton className="h-4 w-12 mx-auto" />
+              </div>
+            ))}
+          </div>
+          <div className="card">
+            <Skeleton className="h-6 w-24 mb-4" />
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <AppointmentCardSkeleton key={i} />)}
+            </div>
+          </div>
+        </main>
       </div>
     )
   }
@@ -351,7 +420,7 @@ export default function MyPage() {
                   
                   {activeTab === 'past' && appointment.status === 'COMPLETED' && (
                     <Link 
-                      href={`/reserve?doctorId=${appointment.doctor}`}
+                      href="/reserve"
                       className="block mt-3 py-2 text-center text-sm text-[#5B9A8B] border border-[#5B9A8B] rounded-lg hover:bg-[#E8F5F2] transition-colors"
                     >
                       다시 예약하기
@@ -363,7 +432,7 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* 로그아웃 버튼 (하단) */}
+        {/* 로그아웃 버튼 */}
         <button
           onClick={handleLogout}
           className="w-full py-3 text-center text-[#636E72] hover:text-[#E57373] transition-colors border border-gray-200 rounded-xl bg-white"

@@ -23,12 +23,14 @@
     "@prisma/client": "^5.22.0",
     "@types/ws": "^8.18.1",
     "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.2",
     "next": "16.0.7",
     "prisma": "^5.22.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "tailwind-merge": "^3.4.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
