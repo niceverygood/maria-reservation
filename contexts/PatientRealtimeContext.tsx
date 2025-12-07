@@ -1,11 +1,13 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { wsClient, WSMessage } from '@/lib/ws/wsClient'
 
 interface PatientRealtimeContextType {
   lastUpdate: number
   refreshTrigger: number
   forceRefresh: () => void
+  isRealtimeConnected: boolean
 }
 
 const PatientRealtimeContext = createContext<PatientRealtimeContextType | null>(null)
@@ -13,9 +15,10 @@ const PatientRealtimeContext = createContext<PatientRealtimeContextType | null>(
 export function PatientRealtimeProvider({ children }: { children: React.ReactNode }) {
   const [lastUpdate, setLastUpdate] = useState(Date.now())
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false)
   const lastCheckedRef = useRef<string | null>(null)
 
-  // 예약 상태 변경 확인 (5초마다)
+  // 예약 상태 변경 확인 (폴백용)
   const checkAppointmentUpdates = useCallback(async () => {
     try {
       const url = lastCheckedRef.current 
@@ -39,12 +42,46 @@ export function PatientRealtimeProvider({ children }: { children: React.ReactNod
     }
   }, [])
 
-  // 5초마다 확인
+  // WebSocket 메시지 핸들러
+  const handleWSMessage = useCallback((data: WSMessage) => {
+    console.log('📩 환자 WebSocket 메시지:', data.type)
+
+    // 모든 예약 관련 이벤트에 새로고침
+    if (['NEW_APPOINTMENT', 'CANCEL_APPOINTMENT', 'STATUS_CHANGE'].includes(data.type)) {
+      setLastUpdate(Date.now())
+      setRefreshTrigger(prev => prev + 1)
+    }
+  }, [])
+
+  // WebSocket 연결
   useEffect(() => {
+    // WebSocket 연결
+    wsClient.connect('patient')
+
+    // 연결 상태 핸들러
+    const unsubConnection = wsClient.onConnection((connected) => {
+      setIsRealtimeConnected(connected)
+    })
+
+    // 메시지 핸들러
+    const unsubMessage = wsClient.onMessage(handleWSMessage)
+
+    // 초기 로드
     checkAppointmentUpdates()
-    const interval = setInterval(checkAppointmentUpdates, 5000)
-    return () => clearInterval(interval)
-  }, [checkAppointmentUpdates])
+
+    // 폴백: WebSocket 연결 안 되면 폴링
+    const interval = setInterval(() => {
+      if (!wsClient.isConnected) {
+        checkAppointmentUpdates()
+      }
+    }, 5000)
+
+    return () => {
+      unsubConnection()
+      unsubMessage()
+      clearInterval(interval)
+    }
+  }, [handleWSMessage, checkAppointmentUpdates])
 
   const forceRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1)
@@ -55,7 +92,8 @@ export function PatientRealtimeProvider({ children }: { children: React.ReactNod
     <PatientRealtimeContext.Provider value={{
       lastUpdate,
       refreshTrigger,
-      forceRefresh
+      forceRefresh,
+      isRealtimeConnected
     }}>
       {children}
     </PatientRealtimeContext.Provider>
@@ -69,9 +107,9 @@ export function usePatientRealtime() {
     return {
       lastUpdate: Date.now(),
       refreshTrigger: 0,
-      forceRefresh: () => {}
+      forceRefresh: () => {},
+      isRealtimeConnected: false
     }
   }
   return context
 }
-

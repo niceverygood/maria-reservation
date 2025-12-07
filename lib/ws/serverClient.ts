@@ -1,16 +1,16 @@
 /**
- * 서버 사이드 WebSocket 클라이언트
+ * 서버 사이드 WebSocket 브로드캐스트 클라이언트
  * API 라우트에서 WebSocket 서버로 메시지를 전송할 때 사용
+ * HTTP POST 방식 (Vercel Serverless 호환)
  */
 
-import WebSocket from 'ws'
-
-const WS_URL = process.env.WS_SERVER_URL || 'ws://localhost:8090'
+const WS_SERVER_URL = process.env.WS_SERVER_URL || 'http://localhost:8090'
+const WS_API_KEY = process.env.WS_API_KEY || 'maria-ws-secret-key'
 
 export type MessageType = 
   | 'NEW_APPOINTMENT'
   | 'CANCEL_APPOINTMENT'
-  | 'UPDATE_STATUS'
+  | 'STATUS_CHANGE'
   | 'RESCHEDULE_APPOINTMENT'
 
 interface WSPayload {
@@ -19,46 +19,49 @@ interface WSPayload {
   date?: string
   time?: string
   patientName?: string
+  doctorName?: string
   status?: string
   [key: string]: unknown
 }
 
 /**
- * WebSocket 서버로 메시지 전송 (fire-and-forget)
+ * WebSocket 서버로 브로드캐스트 메시지 전송 (HTTP POST)
  * 연결 실패해도 API 응답에 영향 없음
  */
-export async function broadcastWSMessage(type: MessageType, payload: WSPayload): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      const ws = new WebSocket(WS_URL)
-      
-      const timeout = setTimeout(() => {
-        ws.close()
-        resolve()
-      }, 3000) // 3초 타임아웃
+export async function broadcastWSMessage(type: MessageType, payload: WSPayload): Promise<boolean> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 2000) // 2초 타임아웃
 
-      ws.on('open', () => {
-        ws.send(JSON.stringify({ type, payload }))
-        clearTimeout(timeout)
-        ws.close()
-        resolve()
-      })
+    const response = await fetch(`${WS_SERVER_URL}/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': WS_API_KEY
+      },
+      body: JSON.stringify({ type, ...payload }),
+      signal: controller.signal
+    })
 
-      ws.on('error', (error) => {
-        console.error('WebSocket 브로드캐스트 실패:', error.message)
-        clearTimeout(timeout)
-        resolve() // 에러가 발생해도 resolve (API 응답 차단 방지)
-      })
+    clearTimeout(timeout)
 
-      ws.on('close', () => {
-        clearTimeout(timeout)
-        resolve()
-      })
-    } catch (error) {
-      console.error('WebSocket 연결 실패:', error)
-      resolve()
+    if (!response.ok) {
+      console.log(`📡 브로드캐스트 실패: ${response.status}`)
+      return false
     }
-  })
+
+    const result = await response.json()
+    console.log(`📢 브로드캐스트 성공: ${type} -> ${result.clients}명`)
+    return true
+  } catch (error) {
+    // WebSocket 서버가 없어도 앱은 정상 작동
+    if ((error as Error).name === 'AbortError') {
+      console.log('📡 브로드캐스트 타임아웃')
+    } else {
+      console.log('📡 WebSocket 서버 연결 불가 - 브로드캐스트 스킵')
+    }
+    return false
+  }
 }
 
 /**
@@ -74,7 +77,7 @@ export function broadcastNewAppointment(payload: {
   department?: string
   status?: string
 }) {
-  return broadcastWSMessage('NEW_APPOINTMENT', payload)
+  return broadcastWSMessage('NEW_APPOINTMENT', { appointment: payload })
 }
 
 /**
@@ -86,7 +89,7 @@ export function broadcastCancelAppointment(payload: {
   date: string
   time: string
 }) {
-  return broadcastWSMessage('CANCEL_APPOINTMENT', payload)
+  return broadcastWSMessage('CANCEL_APPOINTMENT', { appointmentId: payload.id, ...payload })
 }
 
 /**
@@ -98,7 +101,7 @@ export function broadcastStatusUpdate(payload: {
   date: string
   doctorId?: string
 }) {
-  return broadcastWSMessage('UPDATE_STATUS', payload)
+  return broadcastWSMessage('STATUS_CHANGE', { appointmentId: payload.id, ...payload })
 }
 
 /**
@@ -114,4 +117,3 @@ export function broadcastReschedule(payload: {
 }) {
   return broadcastWSMessage('RESCHEDULE_APPOINTMENT', payload)
 }
-

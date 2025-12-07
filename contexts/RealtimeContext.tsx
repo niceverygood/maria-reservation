@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { wsClient, WSMessage } from '@/lib/ws/wsClient'
 
 interface Notification {
   id: string
@@ -34,6 +35,7 @@ interface RealtimeContextType {
   markAllAsRead: () => void
   refreshTrigger: number
   forceRefresh: () => void
+  isRealtimeConnected: boolean
 }
 
 const RealtimeContext = createContext<RealtimeContextType | null>(null)
@@ -45,6 +47,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const [lastUpdate, setLastUpdate] = useState(Date.now())
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [hasPermission, setHasPermission] = useState(false)
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false)
   const audioContextRef = useRef<AudioContext | null>(null)
 
   // 안 읽은 알림 수
@@ -118,7 +121,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // 새 예약 및 변경 확인 (3초마다)
+  // 새 예약 및 변경 확인 (폴백용 - WebSocket 연결 안 됐을 때)
   const checkNewAppointments = useCallback(async () => {
     try {
       const url = lastChecked 
@@ -172,12 +175,108 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [lastChecked, newAppointments, showBrowserNotification, playNotificationSound])
 
-  // 3초마다 확인 (실시간 동기화)
+  // WebSocket 메시지 핸들러
+  const handleWSMessage = useCallback(async (data: WSMessage) => {
+    console.log('📩 WebSocket 메시지:', data.type)
+
+    if (data.type === 'NEW_APPOINTMENT') {
+      const apt = data.appointment as { id: string; patientName: string; doctorName: string; date: string; time: string }
+      
+      // 상세 정보 조회
+      try {
+        const res = await fetch(`/api/admin/appointments/${apt.id}`)
+        const result = await res.json()
+        
+        if (result.success && result.appointment) {
+          const fullApt = result.appointment
+          const newAppointment: NewAppointment = {
+            id: fullApt.id,
+            patientName: fullApt.patient?.name || apt.patientName,
+            patientPhone: fullApt.patient?.phone || '',
+            doctorName: fullApt.doctor?.name || apt.doctorName,
+            department: fullApt.doctor?.department || '산부인과',
+            date: fullApt.date,
+            time: fullApt.time,
+            reservedAt: fullApt.reservedAt || new Date().toISOString()
+          }
+
+          const notification: Notification = {
+            id: `notif-${apt.id}`,
+            type: 'NEW_APPOINTMENT',
+            title: '🔔 새 예약 접수',
+            message: `${newAppointment.patientName}님 - ${newAppointment.doctorName} (${newAppointment.date} ${newAppointment.time})`,
+            appointmentId: apt.id,
+            isRead: false,
+            createdAt: newAppointment.reservedAt
+          }
+
+          setNotifications(prev => [notification, ...prev].slice(0, 50))
+          setNewAppointments(prev => [newAppointment, ...prev].slice(0, 20))
+          
+          showBrowserNotification(newAppointment)
+          playNotificationSound()
+        }
+      } catch (error) {
+        console.error('예약 정보 조회 오류:', error)
+      }
+
+      setLastUpdate(Date.now())
+      setRefreshTrigger(prev => prev + 1)
+    }
+
+    if (data.type === 'CANCEL_APPOINTMENT') {
+      const notification: Notification = {
+        id: `notif-cancel-${data.appointmentId}`,
+        type: 'CANCELLATION',
+        title: '❌ 예약 취소',
+        message: `예약이 취소되었습니다`,
+        appointmentId: data.appointmentId as string,
+        isRead: false,
+        createdAt: new Date().toISOString()
+      }
+      setNotifications(prev => [notification, ...prev].slice(0, 50))
+      playNotificationSound()
+      setLastUpdate(Date.now())
+      setRefreshTrigger(prev => prev + 1)
+    }
+
+    if (data.type === 'STATUS_CHANGE') {
+      setLastUpdate(Date.now())
+      setRefreshTrigger(prev => prev + 1)
+    }
+  }, [showBrowserNotification, playNotificationSound])
+
+  // WebSocket 연결
   useEffect(() => {
+    // WebSocket 연결
+    wsClient.connect('admin')
+
+    // 연결 상태 핸들러
+    const unsubConnection = wsClient.onConnection((connected) => {
+      setIsRealtimeConnected(connected)
+      console.log(connected ? '✅ WebSocket 연결됨' : '❌ WebSocket 연결 끊김')
+    })
+
+    // 메시지 핸들러
+    const unsubMessage = wsClient.onMessage(handleWSMessage)
+
+    // 초기 로드 (WebSocket 연결 여부와 관계없이)
     checkNewAppointments()
-    const interval = setInterval(checkNewAppointments, 3000)
-    return () => clearInterval(interval)
-  }, [checkNewAppointments])
+
+    // 폴백: WebSocket 연결 안 되면 폴링
+    const interval = setInterval(() => {
+      if (!wsClient.isConnected) {
+        checkNewAppointments()
+      }
+    }, 5000)
+
+    return () => {
+      unsubConnection()
+      unsubMessage()
+      clearInterval(interval)
+      wsClient.disconnect()
+    }
+  }, [handleWSMessage, checkNewAppointments])
 
   const dismissNotification = (id: string) => {
     setNewAppointments(prev => prev.filter(a => a.id !== id))
@@ -198,9 +297,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
   }
 
-  const forceRefresh = () => {
+  const forceRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1)
-  }
+  }, [])
 
   return (
     <RealtimeContext.Provider value={{
@@ -213,7 +312,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       markAsRead,
       markAllAsRead,
       refreshTrigger,
-      forceRefresh
+      forceRefresh,
+      isRealtimeConnected
     }}>
       {children}
     </RealtimeContext.Provider>

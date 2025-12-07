@@ -76,15 +76,29 @@ function AdminLayoutContent({
     }
   }
 
-  const handleNotificationClick = (notification: { id: string; appointmentId?: string }) => {
+  const handleNotificationClick = (notification: { id: string; type: string; appointmentId?: string }) => {
     markAsRead(notification.id)
     setIsNotificationOpen(false)
-    if (notification.appointmentId) {
-      if (userInfo?.role === 'DOCTOR') {
-        router.push('/admin/my-appointments')
-      } else {
-        router.push('/admin/reservations')
-      }
+    
+    // 알림 타입에 따라 해당 화면으로 이동
+    switch (notification.type) {
+      case 'CHANGE_REQUEST':
+        router.push('/admin/change-requests')
+        break
+      case 'NEW_APPOINTMENT':
+      case 'CANCELLATION':
+      case 'STATUS_CHANGE':
+      default:
+        if (notification.appointmentId) {
+          if (userInfo?.role === 'DOCTOR') {
+            router.push(`/admin/my-appointments?highlight=${notification.appointmentId}`)
+          } else {
+            router.push(`/admin/reservations?highlight=${notification.appointmentId}`)
+          }
+        } else {
+          router.push('/admin/reservations')
+        }
+        break
     }
   }
 

@@ -1,11 +1,33 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useRealtime } from '@/contexts/RealtimeContext'
 import { formatLocalDate, getTodayString, formatDateKorean } from '@/lib/dateUtils'
 import { useWebSocket } from '@/lib/ws/useWebSocket'
+
+// Suspense wrapper를 위한 컴포넌트
+function ReservationsContent() {
+  return <AdminReservationsPageContent />
+}
+
+export default function AdminReservationsPage() {
+  return (
+    <Suspense fallback={
+      <div className="animate-pulse">
+        <div className="h-8 w-48 bg-gray-200 rounded mb-6"></div>
+        <div className="grid grid-cols-7 gap-2">
+          {Array(35).fill(0).map((_, i) => (
+            <div key={i} className="h-16 bg-gray-100 rounded"></div>
+          ))}
+        </div>
+      </div>
+    }>
+      <ReservationsContent />
+    </Suspense>
+  )
+}
 
 interface Doctor {
   id: string
@@ -62,8 +84,10 @@ function clearCache() {
   cache.clear()
 }
 
-export default function AdminReservationsPage() {
+function AdminReservationsPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const highlightId = searchParams.get('highlight')
   const { refreshTrigger } = useRealtime()
   const [viewMode, setViewMode] = useState<ViewMode>('calendar')
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -71,6 +95,7 @@ export default function AdminReservationsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null)
+  const [highlightedId, setHighlightedId] = useState<string | null>(highlightId)
 
   // 캘린더 상태
   const today = new Date()
@@ -90,6 +115,54 @@ export default function AdminReservationsPage() {
 
   // 마지막 갱신 시간
   const lastRefresh = useRef<number>(0)
+  const highlightRef = useRef<HTMLDivElement>(null)
+
+  // highlight 파라미터가 있으면 해당 예약 정보 조회 후 날짜로 이동
+  useEffect(() => {
+    if (highlightId) {
+      const fetchHighlightedAppointment = async () => {
+        try {
+          const res = await fetch(`/api/admin/appointments/${highlightId}`)
+          const data = await res.json()
+          if (data.success && data.appointment) {
+            const aptDate = data.appointment.date
+            setSelectedDate(aptDate)
+            setFilters(prev => ({ ...prev, date: aptDate }))
+            
+            // 해당 월로 캘린더 이동
+            const [year, month] = aptDate.split('-').map(Number)
+            setCurrentYear(year)
+            setCurrentMonth(month)
+            setHighlightedId(highlightId)
+          }
+        } catch (error) {
+          console.error('예약 정보 조회 오류:', error)
+        }
+      }
+      fetchHighlightedAppointment()
+    }
+  }, [highlightId])
+
+  // 하이라이트된 예약으로 스크롤
+  useEffect(() => {
+    if (highlightedId && highlightRef.current) {
+      setTimeout(() => {
+        highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 300)
+    }
+  }, [highlightedId, appointments])
+
+  // 5초 후 하이라이트 해제
+  useEffect(() => {
+    if (highlightedId) {
+      const timer = setTimeout(() => {
+        setHighlightedId(null)
+        // URL에서 highlight 파라미터 제거
+        router.replace('/admin/reservations', { scroll: false })
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [highlightedId, router])
 
   // 초기 데이터 로드 (의사 목록 + 날짜별 건수 병렬 로드)
   useEffect(() => {
