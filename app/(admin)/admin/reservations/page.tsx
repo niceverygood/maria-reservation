@@ -694,6 +694,11 @@ function AdminReservationsPageContent() {
                             {count.completed}
                           </span>
                         )}
+                        {count.noShow > 0 && (
+                          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-purple-500 text-white">
+                            {count.noShow}
+                          </span>
+                        )}
                       </div>
                     )}
                   </button>
@@ -724,6 +729,7 @@ function AdminReservationsPageContent() {
                     apt.status === 'PENDING' ? 'bg-yellow-50 border border-yellow-200' : 
                     apt.status === 'BOOKED' ? 'bg-blue-50 border border-blue-200' :
                     apt.status === 'COMPLETED' ? 'bg-green-50 border border-green-200' :
+                    apt.status === 'NO_SHOW' ? 'bg-purple-50 border border-purple-200' :
                     'bg-gray-50'
                   } ${!apt.emrSynced && ['BOOKED', 'COMPLETED'].includes(apt.status) ? 'ring-2 ring-red-300' : ''}`}>
                     <div className="flex items-center justify-between mb-2">
