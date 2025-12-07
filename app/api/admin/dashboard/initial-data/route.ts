@@ -125,7 +125,7 @@ export async function GET() {
       doctors,
       recentAppointments,
       admin: {
-        id: admin.id,
+        id: admin.userId,
         name: admin.name,
         role: admin.role,
       },

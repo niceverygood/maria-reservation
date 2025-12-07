@@ -60,11 +60,14 @@ export default function MyPage() {
 
     // 2. 프리페치 캐시 체크 (BottomNav에서 미리 로드)
     if (!forceRefresh) {
-      const prefetched = getPrefetchedMypageData() as { success: boolean; patient: PatientInfo; appointments: { upcoming: Appointment[]; past: Appointment[] } } | null
+      const prefetched = getPrefetchedMypageData() as { success: boolean; patient: PatientInfo; appointments: { upcoming: Appointment[]; past: Appointment[]; total?: number } } | null
       if (prefetched?.success) {
         const newData: MypageData = {
           patient: prefetched.patient,
-          appointments: prefetched.appointments,
+          appointments: {
+            ...prefetched.appointments,
+            total: prefetched.appointments.total ?? (prefetched.appointments.upcoming.length + prefetched.appointments.past.length),
+          },
         }
         globalCache = { data: newData, timestamp: Date.now() }
         setData(newData)
