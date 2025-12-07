@@ -1,7 +1,7 @@
 const WebSocket = require('ws');
 const http = require('http');
 
-const PORT = process.env.WS_PORT || 8090;
+const PORT = process.env.PORT || process.env.WS_PORT || 8090;
 const API_KEY = process.env.WS_API_KEY || 'maria-ws-secret-key';
 
 // HTTP 서버 생성 (헬스체크용)

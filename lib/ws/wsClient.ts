@@ -32,13 +32,8 @@ class WebSocketClient {
     if (typeof window === 'undefined') return
     if (this.ws?.readyState === WebSocket.OPEN) return
     
-    // 프로덕션(Vercel)에서는 WebSocket 비활성화 - 폴링으로 대체
-    const isProduction = typeof window !== 'undefined' && 
-      !window.location.hostname.includes('localhost') && 
-      !window.location.hostname.includes('127.0.0.1')
-    
-    if (isProduction) {
-      // 프로덕션에서는 WebSocket 사용 안 함
+    // WebSocket URL이 설정되지 않았으면 연결 안 함 (폴링으로 대체)
+    if (!this.url || !process.env.NEXT_PUBLIC_WS_URL) {
       return
     }
 
