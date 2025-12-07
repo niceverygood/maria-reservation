@@ -106,8 +106,6 @@ function ReserveContent() {
   const [doctorDateSlots, setDoctorDateSlots] = useState<DateSlotCount>({})
   const [doctorSlotsLoading, setDoctorSlotsLoading] = useState(false)
 
-  // 날짜 먼저 선택 모드: 날짜별 예약 가능 여부
-  const [dateAvailability, setDateAvailability] = useState<DateSlotCount>({})
 
   // 캘린더 상태
   const today = useMemo(() => {
@@ -173,29 +171,6 @@ function ReserveContent() {
     return []
   }, [])
 
-  // 날짜별 슬롯 로드 (날짜 먼저 모드) - 논블로킹
-  const loadDateAvailability = useCallback(async (year: number, month: number) => {
-    const cacheKey = `${year}-${month}`
-    const cached = globalCache.dateSlots.get(cacheKey)
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      setDateAvailability(prev => ({ ...prev, ...cached.data }))
-      return cached.data
-    }
-
-    // 로딩 표시 없이 백그라운드 로드
-    try {
-      const startDate = formatLocalDate(new Date(year, month, 1))
-      const endDate = formatLocalDate(new Date(year, month + 1, 0))
-      const res = await fetch(`/api/patient/slots/count-by-date?startDate=${startDate}&endDate=${endDate}`)
-      const data = await res.json()
-      if (data.success && isMounted.current) {
-        globalCache.dateSlots.set(cacheKey, { data: data.counts, timestamp: Date.now() })
-        setDateAvailability(prev => ({ ...prev, ...data.counts }))
-        return data.counts
-      }
-    } catch { /* ignore */ }
-    return {}
-  }, [])
 
   // 특정 날짜의 의사 목록 로드
   const loadDoctorsByDate = useCallback(async (date: string) => {
@@ -321,13 +296,6 @@ function ReserveContent() {
     load()
   }, [rescheduleId])
 
-  // 월 변경 시 날짜 슬롯 로드 (비동기, 논블로킹)
-  useEffect(() => {
-    if (selectMode === 'date-first' && step === 'calendar') {
-      // 로딩 표시 없이 백그라운드 로드
-      loadDateAvailability(currentYear, currentMonth)
-    }
-  }, [selectMode, step, currentYear, currentMonth, loadDateAvailability])
 
   // 날짜 선택 시 의사 목록 로드
   useEffect(() => {
@@ -352,7 +320,7 @@ function ReserveContent() {
 
   // ============ 핸들러들 ============
 
-  const handleModeSelect = useCallback(async (mode: SelectMode) => {
+  const handleModeSelect = useCallback((mode: SelectMode) => {
     if (!isLoggedIn) {
       router.push('/login?redirect=/reserve')
       return
@@ -362,15 +330,8 @@ function ReserveContent() {
     setSelectedDate(null)
     setSelectedDoctor(null)
     setSelectedTime(null)
-    
-    if (mode === 'date-first') {
-      setStep('calendar')
-      // 날짜 슬롯 미리 로드
-      loadDateAvailability(currentYear, currentMonth)
-    } else {
-      setStep('doctor')
-    }
-  }, [isLoggedIn, router, currentYear, currentMonth, loadDateAvailability])
+    setStep(mode === 'date-first' ? 'calendar' : 'doctor')
+  }, [isLoggedIn, router])
 
   const handleDateSelectDateFirst = useCallback((date: string) => {
     setSelectedDate(date)
@@ -591,13 +552,10 @@ function ReserveContent() {
                 if (!date) return <div key={`empty-${idx}`} className="h-12" />
                 const dateStr = formatLocalDate(date)
                 const isInRange = isDateInRange(date)
-                const slotCount = dateAvailability[dateStr]
-                const hasData = slotCount !== undefined
-                const hasSlots = !hasData || slotCount > 0 // 데이터 없으면 일단 가능하다고 표시
-                const isAvailable = isInRange && hasSlots && date.getDay() !== 0 // 일요일 제외
+                const isSunday = date.getDay() === 0
+                const isAvailable = isInRange && !isSunday
                 const isToday = dateStr === todayStr
                 const isSaturday = date.getDay() === 6
-                const isSunday = date.getDay() === 0
 
                 return (
                   <button
@@ -613,7 +571,6 @@ function ReserveContent() {
                       <span className={`text-sm font-medium ${
                         !isInRange ? 'text-gray-300' : 
                         isSunday ? 'text-gray-300' :
-                        (hasData && slotCount === 0) ? 'text-gray-400' :
                         isSaturday ? 'text-blue-500' : 'text-[#2D8B6F]'
                       }`}>{date.getDate()}</span>
                     </div>
