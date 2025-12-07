@@ -241,3 +241,24 @@ model NotificationSetting {
 
   @@map("notification_settings")
 }
+
+// ============================================
+// 사전 계산된 슬롯 (DailySlotSummary)
+// 매일 자정에 향후 4주치 슬롯을 미리 계산하여 저장
+// 조회 시 복잡한 계산 없이 즉시 반환
+// ============================================
+model DailySlotSummary {
+  id              String   @id @default(cuid())
+  doctorId        String
+  date            String   // YYYY-MM-DD
+  totalSlots      Int      @default(0)
+  availableSlots  Int      @default(0)
+  bookedSlots     Int      @default(0)
+  isOff           Boolean  @default(false)  // 휴진일
+  updatedAt       DateTime @updatedAt
+
+  @@unique([doctorId, date])
+  @@index([date])
+  @@index([doctorId, date, availableSlots])
+  @@map("daily_slot_summaries")
+}

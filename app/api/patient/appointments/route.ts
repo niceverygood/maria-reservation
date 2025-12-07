@@ -5,6 +5,7 @@ import { verifyPatientToken } from '@/lib/patientAuth'
 import { broadcastNewAppointment, broadcastReschedule } from '@/lib/ws/serverClient'
 import { sendReservationConfirmKakao } from '@/lib/notification/kakaoAlimtalk'
 import { invalidateSlotCache } from '@/lib/cache/slotCache'
+import { updateSlotSummary } from '@/lib/slots/precompute'
 
 // 지점명 및 환자 웹 URL (환경변수로 설정 가능)
 const BRANCH_NAME = process.env.BRANCH_NAME || '일산마리아병원'
@@ -144,6 +145,9 @@ export async function POST(request: Request) {
 
     // 🚀 캐시 무효화 (즉시 실행)
     invalidateSlotCache(doctorId, date)
+    
+    // 🚀 슬롯 요약 갱신 (비동기 - 응답 대기 안함)
+    updateSlotSummary(doctorId, date).catch(console.error)
 
     // 6단계: 비동기 작업들 (응답 후 처리 - 사용자 대기 없음)
     // WebSocket 브로드캐스트

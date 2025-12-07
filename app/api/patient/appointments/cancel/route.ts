@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 import { invalidateSlotCache } from '@/lib/cache/slotCache'
+import { updateSlotSummary } from '@/lib/slots/precompute'
 
 /**
  * POST /api/patient/appointments/cancel
@@ -123,6 +124,9 @@ export async function POST(request: Request) {
 
     // 🚀 캐시 무효화
     invalidateSlotCache(appointment.doctorId, appointment.date)
+    
+    // 🚀 슬롯 요약 갱신 (비동기)
+    updateSlotSummary(appointment.doctorId, appointment.date).catch(console.error)
 
     return NextResponse.json({
       success: true,

@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/reminder-today",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/precompute-slots",
+      "schedule": "0 0 * * *"
     }
   ],
   "headers": [
