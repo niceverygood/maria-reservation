@@ -50,9 +50,11 @@ export async function GET() {
     // 통계 계산
     const stats = {
       total: appointments.length,
+      pending: appointments.filter((a) => a.status === 'PENDING').length,
       booked: appointments.filter((a) => a.status === 'BOOKED').length,
       completed: appointments.filter((a) => a.status === 'COMPLETED').length,
       cancelled: appointments.filter((a) => a.status === 'CANCELLED').length,
+      rejected: appointments.filter((a) => a.status === 'REJECTED').length,
       noShow: appointments.filter((a) => a.status === 'NO_SHOW').length,
     }
 
@@ -70,4 +72,5 @@ export async function GET() {
     )
   }
 }
+
 

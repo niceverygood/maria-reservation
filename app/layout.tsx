@@ -27,7 +27,7 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"
         />
       </head>
-      <body className="min-h-screen bg-[#F8FAFC]">
+      <body className="min-h-screen bg-[#F8FAFC]" suppressHydrationWarning>
         {children}
       </body>
     </html>

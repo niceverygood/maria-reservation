@@ -14,7 +14,7 @@ async function main() {
   await prisma.adminUser.deleteMany()
 
   // 관리자 계정 생성
-  const passwordHash = await bcrypt.hash('admin1234', 10)
+  const passwordHash = await bcrypt.hash('admin123', 10)
   const admin = await prisma.adminUser.create({
     data: {
       name: '관리자',

@@ -8,7 +8,7 @@ import { cookies } from 'next/headers'
 export async function POST() {
   try {
     const cookieStore = await cookies()
-    cookieStore.delete('patient_token')
+    cookieStore.delete('patient-token')
 
     return NextResponse.json({
       success: true,
@@ -22,4 +22,5 @@ export async function POST() {
     )
   }
 }
+
 

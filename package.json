@@ -4,9 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:ws": "node realtime/server.js",
+    "dev:all": "node realtime/server.js & next dev",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
+    "start:ws": "node realtime/server.js",
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
@@ -18,13 +21,15 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/ws": "^8.18.1",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.2",
     "next": "16.0.7",
     "prisma": "^5.22.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -36,6 +41,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5"
   }

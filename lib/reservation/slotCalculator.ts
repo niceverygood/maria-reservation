@@ -49,8 +49,8 @@ export interface SlotInfo {
 }
 
 // 설정: 최소 예약 사전 시간 (분)
-// 예: 120분이면 현재 시간으로부터 2시간 이내 슬롯은 예약 불가
-const MIN_ADVANCE_MINUTES = 120
+// 예: 60분이면 현재 시간으로부터 1시간 이내 슬롯은 예약 불가
+const MIN_ADVANCE_MINUTES = 60
 
 /**
  * 특정 의사, 특정 날짜의 예약 가능 슬롯을 계산합니다.
@@ -81,46 +81,50 @@ export async function getAvailableSlots(
     return []
   }
 
-  let startTime: string
-  let endTime: string
-  let intervalMinutes: number
-  let dailyMaxAppointments: number | null = null
+  let allSlots: string[] = []
 
   // 2-2. CUSTOM 스케줄인 경우
-  if (exception?.type === 'CUSTOM' && exception.customStart && exception.customEnd && exception.customInterval) {
-    startTime = exception.customStart
-    endTime = exception.customEnd
-    intervalMinutes = exception.customInterval
+  if (exception?.type === 'CUSTOM' && exception.customStart && exception.customEnd) {
+    const intervalMinutes = exception.customInterval || 15
+    allSlots = generateTimeSlots(exception.customStart, exception.customEnd, intervalMinutes)
   } else {
-    // 3. 기본 템플릿 조회
-    const template = await prisma.scheduleTemplate.findFirst({
+    // 3. 기본 템플릿 조회 (해당 요일의 모든 스케줄 - 오전/오후 등)
+    const templates = await prisma.scheduleTemplate.findMany({
       where: {
         doctorId,
         dayOfWeek,
         isActive: true,
       },
+      orderBy: {
+        startTime: 'asc',
+      },
     })
 
     // 템플릿이 없으면 빈 배열 반환 (해당 요일 진료 없음)
-    if (!template) {
+    if (templates.length === 0) {
       return []
     }
 
-    startTime = template.dayStartTime
-    endTime = template.dayEndTime
-    intervalMinutes = template.slotIntervalMinutes
-    dailyMaxAppointments = template.dailyMaxAppointments
+    // 모든 템플릿에서 슬롯 생성
+    for (const template of templates) {
+      const slots = generateTimeSlots(
+        template.startTime,
+        template.endTime,
+        template.slotIntervalMinutes
+      )
+      allSlots.push(...slots)
+    }
   }
 
-  // 4. 시간 슬롯 배열 생성
-  const allSlots = generateTimeSlots(startTime, endTime, intervalMinutes)
+  // 중복 제거 및 정렬
+  allSlots = [...new Set(allSlots)].sort()
 
-  // 5. 해당 날짜의 기존 예약 조회 (BOOKED 상태만)
+  // 4. 해당 날짜의 기존 예약 조회 (취소 제외)
   const existingAppointments = await prisma.appointment.findMany({
     where: {
       doctorId,
       date,
-      status: 'BOOKED',
+      status: { not: 'CANCELLED' },
     },
     select: {
       time: true,
@@ -129,17 +133,12 @@ export async function getAvailableSlots(
 
   const bookedTimes = new Set(existingAppointments.map((a) => a.time))
 
-  // 6. 하루 최대 예약 수 체크
-  if (dailyMaxAppointments && bookedTimes.size >= dailyMaxAppointments) {
-    return allSlots.map((time) => ({ time, available: false }))
-  }
-
-  // 7. 현재 시간 기준 너무 촉박한 슬롯 필터링
+  // 5. 현재 시간 기준 너무 촉박한 슬롯 필터링
   const now = new Date()
   const todayString = now.toISOString().split('T')[0]
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
 
-  // 8. 슬롯별 가용 여부 계산
+  // 6. 슬롯별 가용 여부 계산
   const slots: SlotInfo[] = allSlots.map((time) => {
     // 이미 예약된 시간인지 확인
     if (bookedTimes.has(time)) {
@@ -212,4 +211,3 @@ export async function getAvailableDates(
 
   return availableDates
 }
-

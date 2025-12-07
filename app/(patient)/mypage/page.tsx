@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { usePatientRealtime } from '@/contexts/PatientRealtimeContext'
+import { useWebSocket } from '@/lib/ws/useWebSocket'
 
 interface PatientInfo {
   id: string
@@ -25,45 +27,83 @@ interface Appointment {
 
 export default function MyPage() {
   const router = useRouter()
+  const { refreshTrigger } = usePatientRealtime()
   const [patient, setPatient] = useState<PatientInfo | null>(null)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // 환자 정보 가져오기
-        const authRes = await fetch('/api/auth/me')
-        const authData = await authRes.json()
-        
-        if (!authData.success) {
-          router.push('/login?redirect=/mypage')
-          return
-        }
-        
-        setPatient(authData.patient)
-        
-        // 예약 목록 가져오기
-        const appointRes = await fetch('/api/patient/appointments/my')
-        const appointData = await appointRes.json()
-        
-        if (appointData.success) {
-          setAppointments(appointData.appointments)
-        }
-      } catch (err) {
-        console.error('데이터 로드 실패:', err)
-      } finally {
-        setIsLoading(false)
+  // 데이터 가져오기 함수
+  const fetchData = useCallback(async (showLoading = true) => {
+    if (showLoading) setIsLoading(true)
+    try {
+      // 환자 정보 가져오기
+      const authRes = await fetch('/api/auth/me')
+      const authData = await authRes.json()
+      
+      if (!authData.success) {
+        router.push('/login?redirect=/mypage')
+        return
       }
+      
+      setPatient(authData.patient)
+      
+      // 예약 목록 가져오기
+      const appointRes = await fetch('/api/patient/appointments/my')
+      const appointData = await appointRes.json()
+      
+      if (appointData.success) {
+        setAppointments(appointData.appointments)
+      }
+    } catch (err) {
+      console.error('데이터 로드 실패:', err)
+    } finally {
+      setIsLoading(false)
     }
-    fetchData()
   }, [router])
 
+  // 초기 로드
+  useEffect(() => {
+    fetchData(true)
+  }, [fetchData])
+
+  // 실시간 업데이트 시 데이터 새로고침 (로딩 표시 없이)
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      fetchData(false)
+    }
+  }, [refreshTrigger, fetchData])
+
+  // WebSocket 실시간 동기화
+  useWebSocket({
+    onStatusUpdate: (payload) => {
+      console.log('🔄 상태 변경 수신:', payload)
+      if (payload?.id && payload?.status) {
+        setAppointments(prev =>
+          prev.map(apt => apt.id === payload.id ? { ...apt, status: payload.status as string } : apt)
+        )
+      }
+    },
+    onCancelAppointment: (payload) => {
+      console.log('❌ 예약 취소 수신:', payload)
+      if (payload?.id) {
+        setAppointments(prev =>
+          prev.map(apt => apt.id === payload.id ? { ...apt, status: 'CANCELLED' } : apt)
+        )
+      }
+    },
+  })
+
   const handleLogout = async () => {
+    if (!confirm('로그아웃 하시겠습니까?')) return
+    
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-      router.push('/')
+      const res = await fetch('/api/auth/logout', { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        // 홈으로 이동 (새로고침하여 세션 초기화)
+        window.location.href = '/'
+      }
     } catch (err) {
       console.error('로그아웃 실패:', err)
     }
@@ -83,9 +123,12 @@ export default function MyPage() {
           prev.map(a => a.id === appointmentId ? { ...a, status: 'CANCELLED' } : a)
         )
         alert('예약이 취소되었습니다.')
+      } else {
+        alert(data.error || '예약 취소에 실패했습니다.')
       }
     } catch (err) {
       console.error('예약 취소 실패:', err)
+      alert('예약 취소 중 오류가 발생했습니다.')
     }
   }
 
@@ -109,14 +152,18 @@ export default function MyPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'PENDING':
+        return <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">승인대기</span>
       case 'BOOKED':
-        return <span className="px-2 py-0.5 bg-[#E8F5F2] text-[#5B9A8B] text-xs rounded-full">예약완료</span>
+        return <span className="px-2 py-0.5 bg-[#E8F5F2] text-[#5B9A8B] text-xs rounded-full font-medium">예약완료</span>
       case 'COMPLETED':
-        return <span className="px-2 py-0.5 bg-gray-100 text-[#636E72] text-xs rounded-full">진료완료</span>
+        return <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full">진료완료</span>
       case 'CANCELLED':
-        return <span className="px-2 py-0.5 bg-red-50 text-[#E57373] text-xs rounded-full">취소됨</span>
+        return <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">취소됨</span>
+      case 'REJECTED':
+        return <span className="px-2 py-0.5 bg-red-50 text-red-500 text-xs rounded-full">거절됨</span>
       case 'NO_SHOW':
-        return <span className="px-2 py-0.5 bg-yellow-50 text-[#E9B171] text-xs rounded-full">미방문</span>
+        return <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-xs rounded-full">미방문</span>
       default:
         return null
     }
@@ -125,11 +172,13 @@ export default function MyPage() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   
+  // 예정된 예약: PENDING 또는 BOOKED 상태이면서 미래 날짜
   const upcomingAppointments = appointments.filter(
-    a => new Date(a.date) >= today && a.status === 'BOOKED'
+    a => new Date(a.date) >= today && (a.status === 'PENDING' || a.status === 'BOOKED')
   )
+  // 지난 예약: 과거 날짜 또는 완료/취소/거절 상태
   const pastAppointments = appointments.filter(
-    a => new Date(a.date) < today || a.status !== 'BOOKED'
+    a => new Date(a.date) < today || !['PENDING', 'BOOKED'].includes(a.status)
   )
 
   if (isLoading) {
@@ -152,18 +201,10 @@ export default function MyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F9F8] pb-20">
+    <div className="min-h-screen bg-[#F5F9F8] pb-24">
       {/* 헤더 */}
-      <header className="header-gradient px-5 pt-12 pb-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-[#2D3436]">MY</h1>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-[#636E72] hover:text-[#E57373] transition-colors"
-          >
-            로그아웃
-          </button>
-        </div>
+      <header className="header-gradient px-5 pt-6 pb-6">
+        <h1 className="text-xl font-bold text-[#2D3436]">마이페이지</h1>
       </header>
 
       <main className="px-5 -mt-2">
@@ -225,10 +266,10 @@ export default function MyPage() {
         </div>
 
         {/* 예약 내역 */}
-        <div className="card animate-slide-up">
+        <div className="card animate-slide-up mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="section-title">예약 내역</h3>
-            <Link href="/reserve/lookup" className="section-link">
+            <Link href="/mypage/history" className="section-link">
               전체보기
             </Link>
           </div>
@@ -291,7 +332,7 @@ export default function MyPage() {
                     <span>{appointment.doctor.department}</span>
                   </div>
                   
-                  {activeTab === 'upcoming' && appointment.status === 'BOOKED' && (
+                  {activeTab === 'upcoming' && (appointment.status === 'PENDING' || appointment.status === 'BOOKED') && (
                     <div className="flex gap-2 mt-3">
                       <Link 
                         href={`/reserve?reschedule=${appointment.id}`}
@@ -321,6 +362,14 @@ export default function MyPage() {
             )}
           </div>
         </div>
+
+        {/* 로그아웃 버튼 (하단) */}
+        <button
+          onClick={handleLogout}
+          className="w-full py-3 text-center text-[#636E72] hover:text-[#E57373] transition-colors border border-gray-200 rounded-xl bg-white"
+        >
+          로그아웃
+        </button>
       </main>
     </div>
   )

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getCurrentAdmin } from '@/lib/auth'
+import prisma from '@/lib/db'
 
 /**
  * GET /api/admin/auth/me
- * 현재 로그인한 관리자 정보 조회
+ * 현재 로그인한 관리자/의사 정보 조회
  */
 export async function GET() {
   try {
@@ -16,6 +17,18 @@ export async function GET() {
       )
     }
 
+    // 의사인 경우 추가 정보 조회
+    let department = ''
+    if (admin.role === 'DOCTOR' && admin.doctorId) {
+      const doctor = await prisma.doctor.findUnique({
+        where: { id: admin.doctorId },
+        select: { department: true },
+      })
+      if (doctor) {
+        department = doctor.department
+      }
+    }
+
     return NextResponse.json({
       success: true,
       user: {
@@ -23,6 +36,8 @@ export async function GET() {
         name: admin.name,
         email: admin.email,
         role: admin.role,
+        doctorId: admin.doctorId,
+        department,
       },
     })
   } catch (error) {
@@ -33,4 +48,3 @@ export async function GET() {
     )
   }
 }
-

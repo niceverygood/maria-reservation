@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const templates = await prisma.scheduleTemplate.findMany({
       where: doctorId ? { doctorId } : {},
       include: { doctor: { select: { id: true, name: true, department: true } } },
-      orderBy: [{ doctorId: 'asc' }, { dayOfWeek: 'asc' }],
+      orderBy: [{ doctorId: 'asc' }, { dayOfWeek: 'asc' }, { startTime: 'asc' }],
     })
 
     return NextResponse.json({ success: true, templates })
@@ -30,6 +30,7 @@ export async function GET(request: Request) {
 
 /**
  * POST /api/admin/schedule-templates
+ * 스케줄 템플릿 생성/수정
  */
 export async function POST(request: Request) {
   try {
@@ -39,30 +40,50 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { doctorId, dayOfWeek, dayStartTime, dayEndTime, slotIntervalMinutes, dailyMaxAppointments } = body
+    const { doctorId, dayOfWeek, startTime, endTime, slotIntervalMinutes, dailyMaxAppointments } = body
 
-    if (!doctorId || dayOfWeek === undefined || !dayStartTime || !dayEndTime) {
+    // dayStartTime/dayEndTime 레거시 지원
+    const actualStartTime = startTime || body.dayStartTime
+    const actualEndTime = endTime || body.dayEndTime
+
+    if (!doctorId || dayOfWeek === undefined || !actualStartTime || !actualEndTime) {
       return NextResponse.json({ success: false, error: '필수 필드를 입력해주세요.' }, { status: 400 })
     }
 
-    const template = await prisma.scheduleTemplate.upsert({
-      where: { doctorId_dayOfWeek: { doctorId, dayOfWeek } },
-      update: {
-        dayStartTime,
-        dayEndTime,
-        slotIntervalMinutes: slotIntervalMinutes || 15,
-        dailyMaxAppointments: dailyMaxAppointments || null,
-        isActive: true,
-      },
-      create: {
+    // 기존 템플릿 확인 (unique: doctorId + dayOfWeek + startTime)
+    const existing = await prisma.scheduleTemplate.findFirst({
+      where: {
         doctorId,
         dayOfWeek,
-        dayStartTime,
-        dayEndTime,
-        slotIntervalMinutes: slotIntervalMinutes || 15,
-        dailyMaxAppointments: dailyMaxAppointments || null,
+        startTime: actualStartTime,
       },
     })
+
+    let template
+    if (existing) {
+      // 기존 템플릿 업데이트
+      template = await prisma.scheduleTemplate.update({
+        where: { id: existing.id },
+        data: {
+          endTime: actualEndTime,
+          slotIntervalMinutes: slotIntervalMinutes || 15,
+          dailyMaxAppointments: dailyMaxAppointments || null,
+          isActive: true,
+        },
+      })
+    } else {
+      // 새 템플릿 생성
+      template = await prisma.scheduleTemplate.create({
+        data: {
+          doctorId,
+          dayOfWeek,
+          startTime: actualStartTime,
+          endTime: actualEndTime,
+          slotIntervalMinutes: slotIntervalMinutes || 15,
+          dailyMaxAppointments: dailyMaxAppointments || null,
+        },
+      })
+    }
 
     return NextResponse.json({ success: true, template })
   } catch (error) {
@@ -70,4 +91,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: '저장 중 오류가 발생했습니다.' }, { status: 500 })
   }
 }
-

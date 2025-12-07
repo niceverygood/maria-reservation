@@ -20,7 +20,8 @@ export interface TokenPayload {
   userId: string
   email: string
   name: string
-  role: 'ADMIN' | 'STAFF'
+  role: 'ADMIN' | 'STAFF' | 'DOCTOR'
+  doctorId?: string  // 의사인 경우 의사 ID
 }
 
 export function generateToken(payload: TokenPayload): string {
@@ -42,7 +43,7 @@ export async function getTokenFromCookies(): Promise<string | null> {
   return cookieStore.get('admin_token')?.value || null
 }
 
-// 현재 로그인한 관리자 정보 가져오기
+// 현재 로그인한 관리자/의사 정보 가져오기
 export async function getCurrentAdmin(): Promise<TokenPayload | null> {
   const token = await getTokenFromCookies()
   if (!token) return null
@@ -58,11 +59,20 @@ export async function requireAuth(): Promise<TokenPayload> {
   return admin
 }
 
-// 관리자 권한 체크
+// 관리자 권한 체크 (ADMIN 또는 STAFF만)
 export async function requireAdmin(): Promise<TokenPayload> {
   const admin = await getCurrentAdmin()
-  if (!admin || admin.role !== 'ADMIN') {
+  if (!admin || (admin.role !== 'ADMIN' && admin.role !== 'STAFF')) {
     throw new Error('관리자 권한이 필요합니다.')
+  }
+  return admin
+}
+
+// 슈퍼 관리자 권한 체크 (ADMIN만)
+export async function requireSuperAdmin(): Promise<TokenPayload> {
+  const admin = await getCurrentAdmin()
+  if (!admin || admin.role !== 'ADMIN') {
+    throw new Error('슈퍼 관리자 권한이 필요합니다.')
   }
   return admin
 }
@@ -75,4 +85,3 @@ export const COOKIE_OPTIONS = {
   maxAge: 60 * 60 * 24, // 24시간
   path: '/',
 }
-

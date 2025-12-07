@@ -6,23 +6,27 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ============================================
 // 의사 (Doctor)
 // ============================================
 model Doctor {
-  id         String   @id @default(cuid())
-  name       String
-  department String   // 진료과 (예: 산부인과, 마취통증의학과 등)
-  position   String?  // 직책 (원장, 부장, 과장 등)
-  bio        String?  // 약력 (줄바꿈으로 구분)
-  imageUrl   String?  // 프로필 이미지 URL
-  isActive   Boolean  @default(true)
-  sortOrder  Int      @default(0) // 정렬 순서
+  id           String   @id @default(cuid())
+  name         String
+  department   String
+  position     String?
+  bio          String?
+  imageUrl     String?
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  
+  // 로그인 정보 (선택)
+  email        String?  @unique
+  passwordHash String?
+  
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -34,17 +38,16 @@ model Doctor {
 }
 
 // ============================================
-// 스케줄 템플릿 (ScheduleTemplate)
-// - 의사의 요일별 기본 진료 시간 설정
+// 스케줄 템플릿 (요일별 기본)
 // ============================================
 model ScheduleTemplate {
   id                   String  @id @default(cuid())
   doctorId             String
-  dayOfWeek            Int     // 0(일) ~ 6(토)
-  startTime            String  // "09:00"
-  endTime              String  // "12:00"
-  slotIntervalMinutes  Int     @default(15) // 예약 간격 (분)
-  dailyMaxAppointments Int?    // 하루 최대 예약 수 (null = 제한 없음)
+  dayOfWeek            Int
+  startTime            String
+  endTime              String
+  slotIntervalMinutes  Int     @default(15)
+  dailyMaxAppointments Int?
   isActive             Boolean @default(true)
 
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
@@ -54,18 +57,17 @@ model ScheduleTemplate {
 }
 
 // ============================================
-// 스케줄 예외 (ScheduleException)
-// - 휴진 또는 특별 스케줄
+// 스케줄 예외 (특별 스케줄 / 휴진)
 // ============================================
 model ScheduleException {
   id             String  @id @default(cuid())
   doctorId       String
-  date           String  // "2024-01-15" (YYYY-MM-DD)
-  type           String  // "OFF" (휴진) | "CUSTOM" (특별 스케줄)
-  customStart    String? // CUSTOM일 때만: "10:00"
-  customEnd      String? // CUSTOM일 때만: "11:30"
-  customInterval Int?    // CUSTOM일 때만: 분 단위
-  reason         String? // 휴진 사유 (학회, 휴가 등)
+  date           String
+  type           String
+  customStart    String?
+  customEnd      String?
+  customInterval Int?
+  reason         String?
 
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
@@ -75,19 +77,17 @@ model ScheduleException {
 
 // ============================================
 // 환자 (Patient)
-// - 카카오 로그인 또는 이름+생년월일+전화번호로 식별
 // ============================================
 model Patient {
-  id        String   @id @default(cuid())
-  name      String
-  birthDate String?  // "19900101" (YYYYMMDD) - 카카오 로그인 시 null 가능
-  phone     String?  // "01012345678" - 카카오 로그인 시 null 가능
-  
-  // 카카오 로그인 연동
-  kakaoId       String?  @unique // 카카오 고유 ID
-  kakaoEmail    String?  // 카카오 이메일
-  kakaoProfile  String?  // 카카오 프로필 이미지 URL
-  
+  id           String   @id @default(cuid())
+  name         String
+  birthDate    String?
+  phone        String?
+
+  kakaoId      String?  @unique
+  kakaoEmail   String?
+  kakaoProfile String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -104,11 +104,11 @@ model Appointment {
   id         String   @id @default(cuid())
   doctorId   String
   patientId  String
-  date       String   // "2024-01-15" (YYYY-MM-DD)
-  time       String   // "09:00" (HH:MM)
-  status     String   @default("BOOKED") // BOOKED | COMPLETED | NO_SHOW | CANCELLED
-  memo       String?  // 직원용 메모
-  reservedAt DateTime @default(now()) // 예약 생성 시각
+  date       String
+  time       String
+  status     String   @default("BOOKED")
+  memo       String?
+  reservedAt DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
@@ -121,17 +121,116 @@ model Appointment {
 }
 
 // ============================================
-// 관리자/직원 계정 (AdminUser)
+// 관리자 (AdminUser)
 // ============================================
 model AdminUser {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String
-  role         String   @default("STAFF") // ADMIN | STAFF
+  role         String   @default("STAFF")
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  notifications AdminNotification[]
+
   @@map("admin_users")
+}
+
+// ============================================
+// 관리자 알림 (AdminNotification)
+// ============================================
+model AdminNotification {
+  id            String   @id @default(cuid())
+  type          String   // NEW_APPOINTMENT, CANCELLED, STATUS_CHANGED 등
+  title         String
+  message       String
+  appointmentId String?
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  // 특정 관리자에게만 보이는 알림 (null이면 전체)
+  adminId       String?
+  admin         AdminUser? @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([isRead, createdAt])
+  @@map("admin_notifications")
+}
+
+// ============================================
+// 예약 변경 요청 (ScheduleChangeRequest)
+// ============================================
+model ScheduleChangeRequest {
+  id              String   @id @default(cuid())
+  doctorId        String   // 요청한 의사
+  appointmentId   String?  // 변경할 예약 (취소 요청인 경우)
+  
+  requestType     String   // RESCHEDULE(일정변경), CANCEL(취소), OFF_DAY(휴진)
+  
+  // 일정 변경 관련
+  originalDate    String?  // 기존 날짜
+  originalTime    String?  // 기존 시간
+  newDate         String?  // 변경 요청 날짜
+  newTime         String?  // 변경 요청 시간
+  
+  // 휴진 요청 관련
+  offDate         String?  // 휴진 날짜
+  offReason       String?  // 휴진 사유
+  
+  reason          String?  // 변경/취소 사유
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  
+  // 관리자 처리 관련
+  processedBy     String?  // 처리한 관리자 ID
+  processedAt     DateTime?
+  rejectReason    String?  // 거절 사유
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([doctorId, status])
+  @@index([status, createdAt])
+  @@map("schedule_change_requests")
+}
+
+// ============================================
+// 알림 로그 (NotificationLog)
+// ============================================
+model NotificationLog {
+  id            String   @id @default(cuid())
+  type          String   // CONFIRM, CANCEL, REMINDER_1DAY, REMINDER_TODAY, STATUS_CHANGE, RESCHEDULE
+  channel       String   // ALIMTALK, SMS, PUSH
+  recipientPhone String
+  recipientName String
+  appointmentId String?
+  
+  // 발송 내용
+  templateCode  String?
+  message       String   @db.Text
+  
+  // 발송 결과
+  status        String   @default("PENDING") // PENDING, SENT, FAILED
+  errorMessage  String?
+  sentAt        DateTime?
+  
+  createdAt     DateTime @default(now())
+
+  @@index([appointmentId])
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@map("notification_logs")
+}
+
+// ============================================
+// 알림 설정 (NotificationSetting)
+// ============================================
+model NotificationSetting {
+  id            String   @id @default(cuid())
+  key           String   @unique
+  value         String
+  description   String?
+  updatedAt     DateTime @updatedAt
+
+  @@map("notification_settings")
 }

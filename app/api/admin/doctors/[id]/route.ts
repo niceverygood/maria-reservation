@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 import { getCurrentAdmin } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
 
 /**
  * GET /api/admin/doctors/[id]
@@ -50,16 +51,43 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { name, department, isActive, sortOrder } = body
+    const { name, department, isActive, sortOrder, email, password } = body
+
+    // 이메일 중복 확인 (자신 제외)
+    if (email) {
+      const existingDoctor = await prisma.doctor.findFirst({
+        where: { email, id: { not: id } },
+      })
+      if (existingDoctor) {
+        return NextResponse.json({ success: false, error: '이미 사용 중인 이메일입니다.' }, { status: 400 })
+      }
+      
+      // 관리자 이메일과도 중복 확인
+      const existingAdmin = await prisma.adminUser.findFirst({
+        where: { email },
+      })
+      if (existingAdmin) {
+        return NextResponse.json({ success: false, error: '이미 사용 중인 이메일입니다.' }, { status: 400 })
+      }
+    }
+
+    // 비밀번호 해싱 (비밀번호가 입력된 경우만)
+    let passwordHash: string | undefined
+    if (password) {
+      passwordHash = await bcrypt.hash(password, 10)
+    }
+
+    const updateData: Record<string, unknown> = {}
+    if (name !== undefined) updateData.name = name
+    if (department !== undefined) updateData.department = department
+    if (isActive !== undefined) updateData.isActive = isActive
+    if (sortOrder !== undefined) updateData.sortOrder = sortOrder
+    if (email !== undefined) updateData.email = email || null
+    if (passwordHash) updateData.passwordHash = passwordHash
 
     const doctor = await prisma.doctor.update({
       where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(department !== undefined && { department }),
-        ...(isActive !== undefined && { isActive }),
-        ...(sortOrder !== undefined && { sortOrder }),
-      },
+      data: updateData,
     })
 
     return NextResponse.json({ success: true, doctor })
@@ -91,4 +119,3 @@ export async function DELETE(
     return NextResponse.json({ success: false, error: '의사 삭제 중 오류가 발생했습니다.' }, { status: 500 })
   }
 }
-

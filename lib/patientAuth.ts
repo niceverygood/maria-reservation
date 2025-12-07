@@ -32,7 +32,7 @@ export function verifyPatientToken(token: string): PatientTokenPayload | null {
 // 쿠키에서 환자 토큰 가져오기
 export async function getPatientTokenFromCookies(): Promise<string | null> {
   const cookieStore = await cookies()
-  return cookieStore.get('patient_token')?.value || null
+  return cookieStore.get('patient-token')?.value || null
 }
 
 // 현재 로그인한 환자 정보 가져오기
@@ -50,4 +50,5 @@ export const PATIENT_COOKIE_OPTIONS = {
   maxAge: 60 * 60 * 24 * 7, // 7일
   path: '/',
 }
+
 
