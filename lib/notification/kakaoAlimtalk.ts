@@ -118,12 +118,19 @@ async function sendAlimtalk(
   message: string,
   buttonUrl?: string
 ): Promise<boolean> {
+  // 환경변수 디버깅 로그
+  console.log('[알림톡] === 발송 시작 ===')
+  console.log('[알림톡] 유형:', type)
+  console.log('[알림톡] 발송 대상:', params.phone)
+  console.log('[알림톡] 템플릿:', templateCode)
+  console.log('[알림톡] API_KEY 설정:', API_KEY ? '✅' : '❌')
+  console.log('[알림톡] USER_ID 설정:', USER_ID ? '✅' : '❌')
+  console.log('[알림톡] SENDER_KEY 설정:', SENDER_KEY ? '✅' : '❌')
+  console.log('[알림톡] SENDER_PHONE:', SENDER_PHONE)
+
   // 환경변수가 설정되지 않은 경우 스킵 (개발 환경)
   if (!API_KEY || !USER_ID || !SENDER_KEY) {
-    console.log('[알림톡] 환경변수 미설정 - 개발 모드 발송')
-    console.log('[알림톡] 유형:', type)
-    console.log('[알림톡] 발송 대상:', params.phone)
-    console.log('[알림톡] 템플릿:', templateCode)
+    console.log('[알림톡] ⚠️ 환경변수 미설정 - 개발 모드 발송')
     console.log('[알림톡] 메시지:\n', message)
     
     // 개발 환경에서도 로그 저장
