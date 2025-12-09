@@ -11,3 +11,6 @@ EXPOSE 8090
 
 CMD ["node", "server.js"]
 
+
+
+

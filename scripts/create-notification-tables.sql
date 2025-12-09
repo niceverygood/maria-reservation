@@ -50,3 +50,6 @@ ON CONFLICT ("key") DO NOTHING;
 -- 완료 메시지
 SELECT 'Notification tables created successfully!' as result;
 
+
+
+

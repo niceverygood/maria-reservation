@@ -33,21 +33,21 @@ export interface AlimtalkParams {
   appointmentId?: string  // 예약 ID (로깅용)
 }
 
-// 환경변수
+// 환경변수 (Vercel 환경변수에서 설정)
 const API_KEY = process.env.ALIGO_API_KEY || ''
 const USER_ID = process.env.ALIGO_USER_ID || ''
 const SENDER_KEY = process.env.ALIGO_SENDER_KEY || ''
-const SENDER_PHONE = process.env.ALIGO_SENDER_PHONE || ''
+const SENDER_PHONE = process.env.ALIGO_SENDER_PHONE || '07041479771'
 
-// 템플릿 코드
+// 템플릿 코드 (ALIGO에서 승인받은 코드)
 const TEMPLATES = {
-  CONFIRM: process.env.ALIGO_TEMPLATE_CONFIRM || '마리아_예약확정',
-  CANCEL: process.env.ALIGO_TEMPLATE_CANCEL || '마리아_예약취소',
-  REMINDER_1DAY: process.env.ALIGO_TEMPLATE_REMINDER_1DAY || '마리아_예약리마인더',
-  REMINDER_TODAY: process.env.ALIGO_TEMPLATE_REMINDER_TODAY || '마리아_당일리마인더',
-  STATUS_CHANGE: process.env.ALIGO_TEMPLATE_STATUS || '마리아_상태변경',
-  RESCHEDULE: process.env.ALIGO_TEMPLATE_RESCHEDULE || '마리아_예약변경',
-  REJECTED: process.env.ALIGO_TEMPLATE_REJECTED || '마리아_예약거절',
+  CONFIRM: process.env.ALIGO_TEMPLATE_CONFIRM || 'UE_0163',           // 마리아 예약확정 ✅
+  CANCEL: process.env.ALIGO_TEMPLATE_CANCEL || 'UE_0164',             // 마리아 예약취소 ✅
+  REMINDER_1DAY: process.env.ALIGO_TEMPLATE_REMINDER_1DAY || '',      // 1일전 리마인더 ❌ 등록 필요
+  REMINDER_TODAY: process.env.ALIGO_TEMPLATE_REMINDER_TODAY || 'UE_0897',  // 마리아_당일리마인더 ⏳ 검수중
+  STATUS_CHANGE: process.env.ALIGO_TEMPLATE_STATUS || '',             // 상태변경 ❌ 등록 필요
+  RESCHEDULE: process.env.ALIGO_TEMPLATE_RESCHEDULE || '',            // 예약변경 ❌ 등록 필요
+  REJECTED: process.env.ALIGO_TEMPLATE_REJECTED || 'UE_0898',         // 예약 거절 ⏳ 검수중
 }
 
 // ALIGO API URL
@@ -187,15 +187,19 @@ async function sendAlimtalk(
 
 /**
  * 예약 확정 알림톡 발송
+ * 템플릿: 마리아 예약확정 (ALIGO에 등록된 템플릿과 정확히 일치해야 함)
  */
 export async function sendReservationConfirmKakao(params: AlimtalkParams): Promise<void> {
   try {
     const dayOfWeek = getDayOfWeek(params.date)
-    const message = `[${params.branchName}] 예약이 확정되었습니다.
+    const dateWithDay = `${formatDateKorean(params.date)} (${dayOfWeek})`
+    
+    // ALIGO 템플릿과 정확히 일치하는 메시지 (#{변수}를 실제 값으로 치환)
+    const message = `[일산마리아병원] 예약이 확정되었습니다.
 
 ■ 예약 정보
 - 환자명: ${params.name}
-- 예약일시: ${formatDateKorean(params.date)} (${dayOfWeek}) ${params.time}
+- 예약일시: ${dateWithDay} ${params.time}
 - 담당의: ${params.doctorName}
 
 예약 변경/취소는 마이페이지에서 가능합니다.
@@ -210,15 +214,19 @@ export async function sendReservationConfirmKakao(params: AlimtalkParams): Promi
 
 /**
  * 예약 취소 알림톡 발송
+ * 템플릿: 마리아 예약취소 (ALIGO에 등록된 템플릿과 정확히 일치해야 함)
  */
 export async function sendReservationCancelKakao(params: AlimtalkParams): Promise<void> {
   try {
     const dayOfWeek = getDayOfWeek(params.date)
-    const message = `[${params.branchName}] 예약이 취소되었습니다.
+    const dateWithDay = `${formatDateKorean(params.date)} (${dayOfWeek})`
+    
+    // ALIGO 템플릿과 정확히 일치하는 메시지
+    const message = `[일산마리아병원] 예약이 취소되었습니다.
 
 ■ 취소된 예약 정보
 - 환자명: ${params.name}
-- 예약일시: ${formatDateKorean(params.date)} (${dayOfWeek}) ${params.time}
+- 예약일시: ${dateWithDay} ${params.time}
 - 담당의: ${params.doctorName}
 
 새로운 예약은 아래 버튼을 눌러주세요.`
@@ -238,15 +246,19 @@ export async function sendReservationApprovedKakao(params: AlimtalkParams): Prom
 
 /**
  * 예약 거절 알림톡 발송 (관리자가 PENDING -> REJECTED 변경 시)
+ * 템플릿: 예약 거절 UE_0898 - 한글 변수명 사용
  */
 export async function sendReservationRejectedKakao(params: AlimtalkParams): Promise<void> {
   try {
     const dayOfWeek = getDayOfWeek(params.date)
+    const dateWithDay = `${formatDateKorean(params.date)} (${dayOfWeek}) ${params.time}`
+    
+    // ALIGO 템플릿 UE_0898과 정확히 일치 (한글 변수명)
     const message = `[${params.branchName}] 예약이 거절되었습니다.
 
 ■ 거절된 예약 정보
 - 환자명: ${params.name}
-- 요청일시: ${formatDateKorean(params.date)} (${dayOfWeek}) ${params.time}
+- 요청일시: ${dateWithDay}
 - 담당의: ${params.doctorName}
 
 죄송합니다. 해당 시간에 예약이 불가능합니다.
@@ -289,15 +301,19 @@ export async function sendReservationRescheduleKakao(
 
 /**
  * 1일 전 리마인더 알림톡 발송
+ * 템플릿: 마리아_예약리마인더 (ALIGO에 등록 필요)
  */
 export async function sendReminder1DayKakao(params: AlimtalkParams): Promise<void> {
   try {
     const dayOfWeek = getDayOfWeek(params.date)
-    const message = `[${params.branchName}] 내일 예약이 있습니다.
+    const dateWithDay = `${formatDateKorean(params.date)} (${dayOfWeek})`
+    
+    // ALIGO 템플릿과 정확히 일치하는 메시지
+    const message = `[일산마리아병원] 내일 예약이 있습니다.
 
 ■ 예약 정보
 - 환자명: ${params.name}
-- 예약일시: ${formatDateKorean(params.date)} (${dayOfWeek}) ${params.time}
+- 예약일시: ${dateWithDay} ${params.time}
 - 담당의: ${params.doctorName}
 
 ※ 예약시간 10분 전까지 내원해 주세요.
@@ -311,10 +327,11 @@ export async function sendReminder1DayKakao(params: AlimtalkParams): Promise<voi
 
 /**
  * 당일 리마인더 알림톡 발송
+ * 템플릿: 마리아_당일리마인더 UE_0897 - 한글 변수명 사용
  */
 export async function sendReminderTodayKakao(params: AlimtalkParams): Promise<void> {
   try {
-    const dayOfWeek = getDayOfWeek(params.date)
+    // ALIGO 템플릿 UE_0897과 정확히 일치 (한글 변수명)
     const message = `[${params.branchName}] 오늘 예약이 있습니다.
 
 ■ 예약 정보

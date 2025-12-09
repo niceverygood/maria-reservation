@@ -183,3 +183,6 @@ ON CONFLICT (email) DO NOTHING;
 -- 완료 메시지
 SELECT 'Schema and initial data created successfully!' AS result;
 
+
+
+

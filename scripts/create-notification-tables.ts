@@ -136,3 +136,6 @@ createNotificationTables()
     process.exit(1)
   })
 
+
+
+

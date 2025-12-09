@@ -175,3 +175,6 @@ Firebase Console > App Check 활성화로 봇 방지 강화
 ### 비율 제한
 Firebase Security Rules로 요청 제한 설정 가능
 
+
+
+
