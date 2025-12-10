@@ -76,8 +76,11 @@ export default function BottomNav() {
       href: '/reserve',
       label: '예약',
       icon: (active: boolean) => (
-        <svg className="w-7 h-7" fill={active ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 0 : 1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth={active ? 2.5 : 1.5} />
+          <line x1="3" y1="10" x2="21" y2="10" strokeWidth={active ? 2.5 : 1.5} />
+          <line x1="8" y1="2" x2="8" y2="6" strokeWidth={active ? 2.5 : 1.5} strokeLinecap="round" />
+          <line x1="16" y1="2" x2="16" y2="6" strokeWidth={active ? 2.5 : 1.5} strokeLinecap="round" />
         </svg>
       ),
       onHover: prefetchReserve,
@@ -86,8 +89,9 @@ export default function BottomNav() {
       href: '/mypage',
       label: '마이페이지',
       icon: (active: boolean) => (
-        <svg className="w-7 h-7" fill={active ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 0 : 1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="8" r="4" strokeWidth={active ? 2.5 : 1.5} />
+          <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" strokeWidth={active ? 2.5 : 1.5} strokeLinecap="round" />
         </svg>
       ),
       onHover: prefetchMypage,
