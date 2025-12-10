@@ -32,13 +32,6 @@ const nextConfig: NextConfig = {
   // 모듈 트랜스파일 (번들 크기 최적화)
   transpilePackages: ['firebase'],
 
-  // 번들 분석기 (개발 시에만)
-  ...(process.env.ANALYZE === 'true' && {
-    experimental: {
-      bundlePagesRouterDependencies: true,
-    },
-  }),
-
   // 헤더 설정 (캐싱 최적화)
   async headers() {
     return [
