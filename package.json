@@ -28,7 +28,7 @@
     "dotenv": "^17.2.3",
     "firebase": "^12.6.0",
     "jsonwebtoken": "^9.0.2",
-    "next": "16.0.7",
+    "next": "16.0.10",
     "prisma": "^5.22.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
