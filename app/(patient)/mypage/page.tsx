@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePatientRealtime } from '@/contexts/PatientRealtimeContext'
 import { useWebSocket } from '@/lib/ws/useWebSocket'
+import { getPrefetchedMypageData, clearPrefetchCache } from '@/components/patient/BottomNav'
 
 interface PatientInfo {
   id: string
@@ -55,6 +56,25 @@ export default function MyPage() {
       setData(globalCache.data)
       setIsLoading(false)
       return
+    }
+
+    // 2. 프리페치 캐시 체크 (BottomNav에서 미리 로드)
+    if (!forceRefresh) {
+      const prefetched = getPrefetchedMypageData() as { success: boolean; patient: PatientInfo; appointments: { upcoming: Appointment[]; past: Appointment[]; total?: number } } | null
+      if (prefetched?.success) {
+        const newData: MypageData = {
+          patient: prefetched.patient,
+          appointments: {
+            ...prefetched.appointments,
+            total: prefetched.appointments.total ?? (prefetched.appointments.upcoming.length + prefetched.appointments.past.length),
+          },
+        }
+        globalCache = { data: newData, timestamp: Date.now() }
+        setData(newData)
+        setIsLoading(false)
+        clearPrefetchCache()
+        return
+      }
     }
 
     // 중복 호출 방지
