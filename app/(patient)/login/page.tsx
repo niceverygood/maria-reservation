@@ -32,20 +32,20 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E8F5F2] to-[#F5F9F8] flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       {/* 헤더 영역 */}
       <div className="flex-1 flex flex-col items-center justify-center p-8">
         {/* 로고 */}
-        <div className="text-center mb-12 animate-fade-in">
-          <h1 className="text-4xl font-bold tracking-wide text-[#2D3436] mb-2">
-            MA<span className="text-[#5B9A8B]">R</span>IA
+        <div className="text-center mb-16 animate-fade-in">
+          <h1 className="text-5xl tracking-[0.2em] font-light text-[#2D3436] mb-3">
+            M<span className="text-[#5B9A8B]">A</span>RIA
           </h1>
-          <p className="text-[#636E72]">일산마리아병원</p>
+          <p className="text-[#636E72] text-sm tracking-wide">일산마리아병원</p>
         </div>
 
         {/* 환영 메시지 */}
-        <div className="text-center mb-8 animate-slide-up">
-          <h2 className="text-xl font-bold text-[#2D3436] mb-2">
+        <div className="text-center mb-10 animate-slide-up">
+          <h2 className="text-xl font-medium text-[#2D3436] mb-1">
             기적 같은 순간을 위해
           </h2>
           <p className="text-[#636E72]">
@@ -55,8 +55,8 @@ function LoginContent() {
 
         {/* 에러 메시지 */}
         {error && (
-          <div className="w-full max-w-sm mb-4 p-4 bg-red-50 border border-red-200 rounded-xl animate-fade-in">
-            <p className="text-sm text-[#E57373] text-center">{error}</p>
+          <div className="w-full max-w-sm mb-4 p-4 bg-red-50 border border-red-100 rounded-xl animate-fade-in">
+            <p className="text-sm text-red-500 text-center">{error}</p>
           </div>
         )}
 
@@ -65,9 +65,9 @@ function LoginContent() {
           {/* 카카오 로그인 */}
           <button
             onClick={handleKakaoLogin}
-            className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-xl font-medium flex items-center justify-center gap-3 hover:bg-[#FDD835] transition-all shadow-sm"
+            className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-xl font-medium flex items-center justify-center gap-3 hover:bg-[#FDD835] transition-all"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 3C6.48 3 2 6.58 2 11c0 2.83 1.88 5.31 4.69 6.74l-.97 3.6c-.05.19.01.39.16.5.09.07.2.1.31.1.08 0 .16-.02.24-.06l4.25-2.83c.44.04.88.06 1.32.06 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
             </svg>
             카카오로 시작하기
@@ -76,7 +76,7 @@ function LoginContent() {
           {/* 비회원 예약 */}
           <Link
             href="/reserve"
-            className="block w-full py-4 bg-white text-[#5B9A8B] rounded-xl font-medium text-center border border-[#5B9A8B] hover:bg-[#E8F5F2] transition-all"
+            className="block w-full py-4 bg-white text-[#5B9A8B] rounded-xl font-medium text-center border border-[#5B9A8B] hover:bg-[#F5F9F8] transition-all"
           >
             비회원으로 예약하기
           </Link>
@@ -84,7 +84,7 @@ function LoginContent() {
           {/* 예약 조회 */}
           <Link
             href="/reserve/lookup"
-            className="block w-full py-4 text-[#636E72] text-center hover:text-[#5B9A8B] transition-colors"
+            className="block w-full py-3 text-[#636E72] text-center text-sm hover:text-[#5B9A8B] transition-colors"
           >
             예약 조회하기
           </Link>
@@ -93,20 +93,20 @@ function LoginContent() {
 
       {/* 하단 정보 */}
       <div className="p-6 text-center animate-fade-in" style={{ animationDelay: '0.2s' }}>
-        <p className="text-sm text-[#B2BEC3] mb-2">
+        <p className="text-xs text-[#B2BEC3] mb-3">
           로그인 시 더 편리하게 예약을 관리할 수 있어요
         </p>
         <div className="flex items-center justify-center gap-4 text-xs text-[#B2BEC3]">
-          <Link href="/info" className="hover:text-[#5B9A8B]">병원 안내</Link>
-          <span>|</span>
+          <Link href="/info" className="hover:text-[#5B9A8B] transition-colors">병원 안내</Link>
+          <span className="text-gray-300">|</span>
           <button 
             onClick={() => window.location.href = 'tel:031-123-4567'}
-            className="hover:text-[#5B9A8B]"
+            className="hover:text-[#5B9A8B] transition-colors"
           >
             전화 문의
           </button>
-          <span>|</span>
-          <Link href="/admin/login" className="hover:text-[#5B9A8B]">직원 로그인</Link>
+          <span className="text-gray-300">|</span>
+          <Link href="/admin/login" className="hover:text-[#5B9A8B] transition-colors">직원 로그인</Link>
         </div>
       </div>
     </div>
@@ -116,8 +116,8 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F9F8]">
-        <div className="w-8 h-8 border-4 border-[#5B9A8B] border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="w-8 h-8 border-2 border-[#5B9A8B] border-t-transparent rounded-full animate-spin"></div>
       </div>
     }>
       <LoginContent />
