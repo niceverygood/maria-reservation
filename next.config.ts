@@ -69,7 +69,7 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
-      },
+          },
       // 보안 헤더
       {
         source: '/:path*',

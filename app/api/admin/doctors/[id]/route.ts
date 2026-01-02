@@ -22,6 +22,10 @@ export async function GET(
       include: {
         scheduleTemplates: { orderBy: { dayOfWeek: 'asc' } },
         scheduleExceptions: { orderBy: { date: 'desc' }, take: 10 },
+        blockedTimes: { 
+          where: { isActive: true },
+          orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
+        },
       },
     })
 
@@ -51,7 +55,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { name, department, isActive, sortOrder, email, password } = body
+    const { name, department, isActive, sortOrder, email, password, maxPatientsPerSlot } = body
 
     // 이메일 중복 확인 (자신 제외)
     if (email) {
@@ -84,6 +88,7 @@ export async function PATCH(
     if (sortOrder !== undefined) updateData.sortOrder = sortOrder
     if (email !== undefined) updateData.email = email || null
     if (passwordHash) updateData.passwordHash = passwordHash
+    if (maxPatientsPerSlot !== undefined) updateData.maxPatientsPerSlot = maxPatientsPerSlot
 
     const doctor = await prisma.doctor.update({
       where: { id },

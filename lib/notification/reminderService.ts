@@ -130,13 +130,13 @@ export async function sendReminders1Day(): Promise<{
     // 알림 파라미터 준비
     const notifications = appointments.map(apt => ({
       phone: apt.patient.phone!,
-      name: apt.patient.name,
-      date: apt.date,
-      time: apt.time,
-      doctorName: apt.doctor.name,
-      branchName: BRANCH_NAME,
-      link: `${PATIENT_WEB_URL}/mypage`,
-      appointmentId: apt.id,
+          name: apt.patient.name,
+          date: apt.date,
+          time: apt.time,
+          doctorName: apt.doctor.name,
+          branchName: BRANCH_NAME,
+          link: `${PATIENT_WEB_URL}/mypage`,
+          appointmentId: apt.id,
     }))
 
     // 배치 처리로 발송
@@ -222,13 +222,13 @@ export async function sendRemindersToday(): Promise<{
     // 알림 파라미터 준비
     const notifications = appointments.map(apt => ({
       phone: apt.patient.phone!,
-      name: apt.patient.name,
-      date: apt.date,
-      time: apt.time,
-      doctorName: apt.doctor.name,
-      branchName: BRANCH_NAME,
-      link: `${PATIENT_WEB_URL}/mypage`,
-      appointmentId: apt.id,
+          name: apt.patient.name,
+          date: apt.date,
+          time: apt.time,
+          doctorName: apt.doctor.name,
+          branchName: BRANCH_NAME,
+          link: `${PATIENT_WEB_URL}/mypage`,
+          appointmentId: apt.id,
     }))
 
     // 배치 처리로 발송

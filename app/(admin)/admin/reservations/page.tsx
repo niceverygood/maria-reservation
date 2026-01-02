@@ -33,6 +33,7 @@ interface Doctor {
   id: string
   name: string
   department: string
+  isActive?: boolean
 }
 
 interface Patient {
@@ -64,7 +65,7 @@ interface DateCount {
   noShow: number
 }
 
-type ViewMode = 'calendar' | 'list' | 'all'
+type ViewMode = 'calendar' | 'list' | 'timeline'
 
 // 캐시 저장소
 const cache = new Map<string, { data: unknown; timestamp: number }>()
@@ -301,12 +302,12 @@ function AdminReservationsPageContent() {
     }
   }, [allFilters])
 
-  // 뷰 모드가 'all'로 변경될 때 전체 예약 로드
+  // 뷰 모드가 'timeline'로 변경될 때 해당 날짜 예약 로드
   useEffect(() => {
-    if (viewMode === 'all') {
-      fetchAllAppointments()
+    if (viewMode === 'timeline') {
+      fetchAppointments(true)
     }
-  }, [viewMode, fetchAllAppointments])
+  }, [viewMode])
 
   useEffect(() => {
     if (!isInitialLoad && viewMode !== 'all') {
@@ -581,6 +582,14 @@ function AdminReservationsPageContent() {
               📅 캘린더
             </button>
             <button
+              onClick={() => setViewMode('timeline')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-all ${
+                viewMode === 'timeline' ? 'bg-white shadow text-[#0066CC]' : 'text-gray-600'
+              }`}
+            >
+              ⏰ 타임라인
+            </button>
+            <button
               onClick={() => setViewMode('list')}
               className={`px-3 py-1.5 text-sm rounded-md transition-all ${
                 viewMode === 'list' ? 'bg-white shadow text-[#0066CC]' : 'text-gray-600'
@@ -843,6 +852,175 @@ function AdminReservationsPageContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 타임라인 뷰 - 담당의/시간별 */}
+      {viewMode === 'timeline' && (
+        <>
+          {/* 날짜 선택 */}
+          <div className="card mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 max-w-xs">
+                <label className="block text-xs font-medium text-[#64748B] mb-1">날짜 선택</label>
+                <input
+                  type="date"
+                  className="input-field text-sm py-2"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    setSelectedDate(e.target.value)
+                    setFilters(prev => ({ ...prev, date: e.target.value }))
+                  }}
+                />
+              </div>
+              <div className="pt-5">
+                <button
+                  onClick={() => {
+                    setSelectedDate(todayStr)
+                    setFilters(prev => ({ ...prev, date: todayStr }))
+                  }}
+                  className="btn-secondary text-sm"
+                >
+                  오늘
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 타임라인 그리드 */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-[#1E293B]">
+                📅 {formatDateKorean(selectedDate)} 예약 현황
+              </h3>
+              <div className="text-sm text-gray-500">
+                총 {appointments.length}건
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="text-center py-8">
+                <div className="inline-block w-8 h-8 border-4 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                {/* 시간대별 헤더 */}
+                <div className="min-w-[800px]">
+                  {/* 의사 목록 헤더 */}
+                  <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0">
+                    <div className="w-20 flex-shrink-0 p-2 font-medium text-sm text-gray-600 border-r">
+                      시간
+                    </div>
+                    {doctors.filter(d => d.isActive !== false).map(doctor => (
+                      <div 
+                        key={doctor.id} 
+                        className="flex-1 min-w-[150px] p-2 text-center font-medium text-sm text-gray-700 border-r last:border-r-0"
+                      >
+                        {doctor.name}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 시간대별 행 */}
+                  {(() => {
+                    // 09:00 ~ 18:00 시간대 생성
+                    const timeSlots: string[] = []
+                    for (let h = 9; h <= 18; h++) {
+                      for (let m = 0; m < 60; m += 15) {
+                        timeSlots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`)
+                      }
+                    }
+
+                    // 의사별로 예약 그룹화
+                    const appointmentsByDoctor = doctors.reduce((acc, doctor) => {
+                      acc[doctor.id] = appointments.filter(apt => apt.doctor.id === doctor.id)
+                      return acc
+                    }, {} as Record<string, Appointment[]>)
+
+                    return timeSlots.map(time => {
+                      const activeDoctors = doctors.filter(d => d.isActive !== false)
+                      const hasAnyAppointment = activeDoctors.some(doctor => 
+                        appointmentsByDoctor[doctor.id]?.some(apt => apt.time === time)
+                      )
+                      
+                      // 15분 단위에서 정각/30분만 표시
+                      const [h, m] = time.split(':')
+                      const isMainTime = m === '00' || m === '30'
+
+                      return (
+                        <div 
+                          key={time} 
+                          className={`flex border-b border-gray-100 ${hasAnyAppointment ? 'bg-blue-50/30' : ''} ${isMainTime ? '' : 'opacity-70'}`}
+                        >
+                          <div className={`w-20 flex-shrink-0 p-2 text-xs border-r ${isMainTime ? 'font-medium text-gray-700' : 'text-gray-400'}`}>
+                            {time}
+                          </div>
+                          {activeDoctors.map(doctor => {
+                            const doctorAppts = appointmentsByDoctor[doctor.id]?.filter(apt => apt.time === time) || []
+                            
+                            return (
+                              <div 
+                                key={doctor.id} 
+                                className="flex-1 min-w-[150px] p-1 border-r last:border-r-0"
+                              >
+                                {doctorAppts.map(apt => (
+                                  <div 
+                                    key={apt.id}
+                                    className={`p-2 rounded text-xs mb-1 cursor-pointer hover:opacity-80 ${
+                                      apt.status === 'PENDING' ? 'bg-yellow-100 border border-yellow-300' :
+                                      apt.status === 'BOOKED' ? 'bg-blue-100 border border-blue-300' :
+                                      apt.status === 'COMPLETED' ? 'bg-green-100 border border-green-300' :
+                                      apt.status === 'NO_SHOW' ? 'bg-purple-100 border border-purple-300' :
+                                      'bg-gray-100 border border-gray-300'
+                                    }`}
+                                    onClick={() => {
+                                      if (apt.status === 'PENDING' && confirm('예약을 확정하시겠습니까?')) {
+                                        handleApprove(apt.id)
+                                      }
+                                    }}
+                                  >
+                                    <div className="font-medium truncate">{apt.patient.name}</div>
+                                    <div className="text-gray-500 truncate">{formatPhone(apt.patient.phone)}</div>
+                                    <div className="flex items-center gap-1 mt-1">
+                                      <span className={`px-1 py-0.5 rounded text-[10px] ${getStatusStyle(apt.status)}`}>
+                                        {getStatusLabel(apt.status)}
+                                      </span>
+                                      {!apt.emrSynced && ['BOOKED', 'COMPLETED'].includes(apt.status) && (
+                                        <span className="px-1 py-0.5 rounded text-[10px] bg-red-100 text-red-600">
+                                          EMR⚠
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* 범례 */}
+            <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-4">
+              <span className="text-xs text-gray-500 font-medium">상태:</span>
+              {[
+                { color: 'bg-yellow-100 border-yellow-300', label: '대기' },
+                { color: 'bg-blue-100 border-blue-300', label: '확정' },
+                { color: 'bg-green-100 border-green-300', label: '완료' },
+                { color: 'bg-purple-100 border-purple-300', label: '노쇼' },
+                { color: 'bg-gray-100 border-gray-300', label: '취소' },
+              ].map(({ color, label }) => (
+                <div key={label} className="flex items-center gap-1">
+                  <span className={`w-4 h-4 rounded border ${color}`}></span>
+                  <span className="text-xs text-gray-600">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {/* 목록 뷰 */}
