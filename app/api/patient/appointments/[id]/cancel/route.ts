@@ -55,10 +55,17 @@ export async function POST(
       return NextResponse.json({ success: true, message: '이미 처리된 예약입니다.', alreadyProcessed: true })
     }
 
-    // 과거 날짜 체크
-    const today = new Date().toISOString().split('T')[0]
-    if (appointment.date < today) {
+    // 당일 및 과거 날짜 체크 (당일 취소 불가)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayStr = today.toISOString().split('T')[0]
+    
+    if (appointment.date < todayStr) {
       return NextResponse.json({ success: false, error: '지난 예약은 취소할 수 없습니다.' }, { status: 400 })
+    }
+    
+    if (appointment.date === todayStr) {
+      return NextResponse.json({ success: false, error: '당일 예약은 취소할 수 없습니다. 병원으로 전화 문의해주세요. (031-000-0000)' }, { status: 400 })
     }
 
     // 예약 취소

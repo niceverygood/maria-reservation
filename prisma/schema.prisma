@@ -38,6 +38,7 @@ model Doctor {
   scheduleExceptions ScheduleException[]
   appointments       Appointment[]
   blockedTimes       DoctorBlockedTime[]
+  timeSlotConfigs    TimeSlotConfig[]
 
   @@map("doctors")
 }
@@ -64,6 +65,31 @@ model DoctorBlockedTime {
   @@index([doctorId, dayOfWeek])
   @@index([doctorId, date])
   @@map("doctor_blocked_times")
+}
+
+// ============================================
+// 시간대별 예약 설정 (TimeSlotConfig)
+// 의사별, 요일별, 시간대별 예약 가능 인원 / 시술 설정
+// ============================================
+model TimeSlotConfig {
+  id              String   @id @default(cuid())
+  doctorId        String
+  dayOfWeek       Int      // 0=일, 1=월, ..., 6=토
+  time            String   // HH:MM (예: "09:00", "09:30")
+  
+  // 설정 타입
+  slotType        String   @default("AVAILABLE") // AVAILABLE, PROCEDURE, OFF
+  maxPatients     Int      @default(1)           // 예약 가능 인원 (AVAILABLE일 때만 유효)
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  @@unique([doctorId, dayOfWeek, time])
+  @@index([doctorId, dayOfWeek, isActive])
+  @@map("time_slot_configs")
 }
 
 // ============================================
@@ -144,6 +170,12 @@ model Appointment {
   memo       String?
   reservedAt DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  // 변경 횟수 제한 (1회만 가능)
+  changeCount  Int       @default(0)       // 변경 횟수
+  lastChangedAt DateTime?                  // 마지막 변경 시간
+  originalDate String?                     // 원래 예약일 (변경 전)
+  originalTime String?                     // 원래 예약시간 (변경 전)
 
   // EMR 등록 관리
   emrSynced    Boolean   @default(false)  // EMR에 등록 완료 여부

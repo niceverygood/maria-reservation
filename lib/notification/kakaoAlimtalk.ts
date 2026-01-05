@@ -192,6 +192,10 @@ async function sendAlimtalk(
   }
 }
 
+// 병원 주소
+const HOSPITAL_ADDRESS = process.env.HOSPITAL_ADDRESS || '경기 고양시 일산동구 중앙로 1060'
+const HOSPITAL_PHONE = process.env.HOSPITAL_PHONE || '031-000-0000'
+
 /**
  * 예약 확정 알림톡 발송
  * 템플릿: 마리아 예약확정 (ALIGO에 등록된 템플릿과 정확히 일치해야 함)
@@ -199,19 +203,20 @@ async function sendAlimtalk(
 export async function sendReservationConfirmKakao(params: AlimtalkParams): Promise<void> {
   try {
     const dayOfWeek = getDayOfWeek(params.date)
-    const dateWithDay = `${formatDateKorean(params.date)} (${dayOfWeek})`
+    const dateWithDay = `${formatDateKorean(params.date)} ${dayOfWeek}요일`
     
-    // ALIGO 템플릿과 정확히 일치하는 메시지 (#{변수}를 실제 값으로 치환)
-    const message = `[일산마리아병원] 예약이 확정되었습니다.
+    // 요청된 메시지 형식
+    const message = `${params.name}님의 예약이 완료되었습니다.
 
-■ 예약 정보
-- 환자명: ${params.name}
-- 예약일시: ${dateWithDay} ${params.time}
-- 담당의: ${params.doctorName}
+• ${params.doctorName} 선생님 재진 예약
+• 일시: ${dateWithDay} ${params.time}
+• 장소: ${HOSPITAL_ADDRESS}
 
 예약 변경/취소는 마이페이지에서 가능합니다.
+(변경은 1회, 당일 변경/취소 불가)
 
-※ 예약시간 10분 전까지 내원해 주세요.`
+※ 예약시간 10분 전까지 내원해 주세요.
+※ 문의: ${HOSPITAL_PHONE}`
 
     await sendAlimtalk('CONFIRM', params, TEMPLATES.CONFIRM, message, params.link)
   } catch (error) {
@@ -226,17 +231,17 @@ export async function sendReservationConfirmKakao(params: AlimtalkParams): Promi
 export async function sendReservationCancelKakao(params: AlimtalkParams): Promise<void> {
   try {
     const dayOfWeek = getDayOfWeek(params.date)
-    const dateWithDay = `${formatDateKorean(params.date)} (${dayOfWeek})`
+    const dateWithDay = `${formatDateKorean(params.date)} ${dayOfWeek}요일`
     
-    // ALIGO 템플릿과 정확히 일치하는 메시지
-    const message = `[일산마리아병원] 예약이 취소되었습니다.
+    // 요청된 메시지 형식
+    const message = `${params.name}님의 예약이 취소되었습니다.
 
-■ 취소된 예약 정보
-- 환자명: ${params.name}
-- 예약일시: ${dateWithDay} ${params.time}
-- 담당의: ${params.doctorName}
+• ${params.doctorName} 선생님 재진 예약
+• 일시: ${dateWithDay} ${params.time}
+• 장소: ${HOSPITAL_ADDRESS}
 
-새로운 예약은 아래 버튼을 눌러주세요.`
+새로운 예약은 아래 버튼을 눌러주세요.
+※ 문의: ${HOSPITAL_PHONE}`
 
     await sendAlimtalk('CANCEL', params, TEMPLATES.CANCEL, message, params.link)
   } catch (error) {
@@ -288,17 +293,20 @@ export async function sendReservationRescheduleKakao(
   try {
     const oldDayOfWeek = getDayOfWeek(oldDate)
     const newDayOfWeek = getDayOfWeek(params.date)
-    const message = `[${params.branchName}] 예약이 변경되었습니다.
+    
+    const message = `${params.name}님의 예약이 변경되었습니다.
 
 ■ 기존 예약
-- ${formatDateKorean(oldDate)} (${oldDayOfWeek}) ${oldTime}
+• ${formatDateKorean(oldDate)} ${oldDayOfWeek}요일 ${oldTime}
 
 ■ 변경된 예약
-- 환자명: ${params.name}
-- 예약일시: ${formatDateKorean(params.date)} (${newDayOfWeek}) ${params.time}
-- 담당의: ${params.doctorName}
+• ${params.doctorName} 선생님 재진 예약
+• 일시: ${formatDateKorean(params.date)} ${newDayOfWeek}요일 ${params.time}
+• 장소: ${HOSPITAL_ADDRESS}
 
-※ 변경된 시간에 내원해 주세요.`
+※ 예약 변경은 1회만 가능합니다.
+※ 추가 변경이 필요하시면 전화 문의해주세요.
+※ 문의: ${HOSPITAL_PHONE}`
 
     await sendAlimtalk('RESCHEDULE', params, TEMPLATES.RESCHEDULE, message, params.link)
   } catch (error) {

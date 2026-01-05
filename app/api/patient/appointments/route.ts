@@ -106,10 +106,49 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3단계: 예약 변경인 경우 기존 예약 취소
+    // 3단계: 예약 변경인 경우 기존 예약 확인 및 취소
+    let originalAppointment: { date: string; time: string; changeCount: number } | null = null
+    
     if (rescheduleId) {
-      await prisma.appointment.updateMany({
-        where: { id: rescheduleId, status: { in: ['PENDING', 'BOOKED'] } },
+      // 기존 예약 정보 조회
+      const existingAppointment = await prisma.appointment.findFirst({
+        where: { 
+          id: rescheduleId, 
+          patientId: patient.id,
+          status: { in: ['PENDING', 'BOOKED'] } 
+        },
+        select: { id: true, date: true, time: true, changeCount: true }
+      })
+
+      if (!existingAppointment) {
+        return NextResponse.json({ success: false, error: '변경할 예약을 찾을 수 없습니다.' }, { status: 400 })
+      }
+
+      // 변경 1회 제한 체크
+      if (existingAppointment.changeCount >= 1) {
+        return NextResponse.json({ 
+          success: false, 
+          error: '예약 변경은 1회만 가능합니다. 추가 변경이 필요하시면 병원으로 전화 문의해주세요. (031-000-0000)' 
+        }, { status: 400 })
+      }
+
+      // 당일 변경 불가 체크
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const todayStr = today.toISOString().split('T')[0]
+      
+      if (existingAppointment.date === todayStr) {
+        return NextResponse.json({ 
+          success: false, 
+          error: '당일 예약은 변경할 수 없습니다. 병원으로 전화 문의해주세요. (031-000-0000)' 
+        }, { status: 400 })
+      }
+
+      originalAppointment = existingAppointment
+
+      // 기존 예약 취소
+      await prisma.appointment.update({
+        where: { id: rescheduleId },
         data: { status: 'CANCELLED' },
       })
     }
@@ -132,7 +171,7 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    // 5단계: 새 예약 생성
+    // 5단계: 새 예약 생성 (변경인 경우 changeCount, originalDate/Time 저장)
     const appointment = await prisma.appointment.create({
       data: {
         doctorId,
@@ -140,6 +179,13 @@ export async function POST(request: Request) {
         date,
         time,
         status: 'PENDING',
+        // 예약 변경인 경우 변경 이력 저장
+        ...(originalAppointment ? {
+          changeCount: originalAppointment.changeCount + 1,
+          originalDate: originalAppointment.date,
+          originalTime: originalAppointment.time,
+          lastChangedAt: new Date(),
+        } : {}),
       },
     })
 
