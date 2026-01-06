@@ -263,12 +263,13 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     // 초기 로드 (WebSocket 연결 여부와 관계없이)
     checkNewAppointments()
 
-    // 폴백: WebSocket 연결 안 되면 폴링
+    // 폴백: WebSocket 연결 안 되면 폴링 (30초 간격 - 성능 최적화)
+    // WebSocket이 연결되면 실시간 업데이트를 받으므로 폴링 불필요
     const interval = setInterval(() => {
       if (!wsClient.isConnected) {
         checkNewAppointments()
       }
-    }, 5000)
+    }, 30000)
 
     return () => {
       unsubConnection()
