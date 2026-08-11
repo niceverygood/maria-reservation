@@ -2,8 +2,8 @@ const pptxgen = require('pptxgenjs')
 
 const pres = new pptxgen()
 pres.layout = 'LAYOUT_WIDE' // 13.333 x 7.5
-pres.author = 'AI Smart CRM'
-pres.title = '난임 전문병원을 위한 AI 스마트 CRM 소개서'
+pres.author = '피움 (Pium)'
+pres.title = '피움 (Pium) — 난임 전문병원 AI 스마트 CRM 소개서'
 
 /* ---------------------------------------------------------------
    PALETTE — carried over from the web proposal so all deliverables
@@ -119,24 +119,36 @@ function lightBg(slide) {
   s.background = { color: C.deep }
 
   s.addText('마리아병원 예약 CRM 구축 · 납품 기반', {
-    x: M, y: 1.72, w: CW, h: 0.34,
+    x: M, y: 1.4, w: CW, h: 0.34,
     fontFace: F, fontSize: 13, bold: true, color: C.teal2,
     charSpacing: 2, margin: 0, valign: 'middle',
   })
 
+  // Wordmark
   s.addText([
-    { text: '난임 전문병원을 위한', options: { breakLine: true } },
-    { text: 'AI 스마트 CRM', options: { color: '7FD8C9' } },
+    { text: '피움', options: { fontSize: 64, color: C.white } },
+    { text: '   Pium', options: { fontSize: 22, color: '7FD8C9', charSpacing: 3 } },
   ], {
-    x: M, y: 2.25, w: 10.4, h: 2.1,
-    fontFace: F, fontSize: 47, bold: true, color: C.white,
-    margin: 0, valign: 'top', lineSpacing: 62,
+    x: M, y: 1.88, w: 10.4, h: 1.15,
+    fontFace: F, bold: true, margin: 0, valign: 'middle',
   })
 
-  s.addText('난임 진료는 날짜가 아니라 주기로 움직입니다.\n국내 난임 분야 1위 병원에서 검증된 예약 · CRM 코어 위에 AI 레이어를 얹어 제공합니다.', {
-    x: M, y: 4.62, w: 9.6, h: 0.9,
+  s.addText('난임 전문병원 AI 스마트 CRM', {
+    x: M, y: 3.42, w: 10.4, h: 0.55,
+    fontFace: F, fontSize: 30, bold: true, color: '7FD8C9',
+    margin: 0, valign: 'middle',
+  })
+
+  s.addText('한 주기도 놓치지 않게.', {
+    x: M, y: 4.22, w: 10.4, h: 0.4,
+    fontFace: F, fontSize: 17, bold: true, color: C.white,
+    margin: 0, valign: 'middle',
+  })
+
+  s.addText('국내 난임 분야 1위 마리아병원에서 검증된 예약 · CRM 코어 위에 AI 레이어를 얹었습니다.', {
+    x: M, y: 4.92, w: 9.9, h: 0.4,
     fontFace: F, fontSize: 14, color: 'AFC7C4', margin: 0,
-    valign: 'top', lineSpacing: 24,
+    valign: 'middle',
   })
 
   // metric row
@@ -159,7 +171,7 @@ function lightBg(slide) {
     })
   })
 
-  s.addText('사업 소개서 · Rev. 1.0', {
+  s.addText('피움 (Pium) · 사업 소개서 · Rev. 1.0', {
     x: W - M - 3.2, y: 6.5, w: 3.2, h: 0.28,
     align: 'right', fontFace: F, fontSize: 10.5, color: '6E918D', margin: 0, valign: 'middle',
   })
@@ -344,7 +356,7 @@ function lightBg(slide) {
     x: M, y: 0.82, w: CW, h: 0.72,
     fontFace: F, fontSize: 31, bold: true, color: C.white, margin: 0, valign: 'middle',
   })
-  s.addText('국내 난임 분야 점유율 1위 마리아병원의 예약 · CRM 시스템을 설계하고 구축해 운영에 올렸습니다.\n신규 병원 도입 시 이 코어가 그대로 시작점이 됩니다.', {
+  s.addText('국내 난임 분야 점유율 1위 마리아병원의 예약 · CRM 시스템을 설계하고 구축해 운영에 올렸습니다.\n이 코어가 곧 피움의 시작점이며, 신규 병원 도입 시 그대로 제공됩니다.', {
     x: M, y: 1.62, w: 10.8, h: 0.76,
     fontFace: F, fontSize: 13.5, color: 'AFC7C4', margin: 0, valign: 'top', lineSpacing: 22,
   })
@@ -611,7 +623,7 @@ function lightBg(slide) {
   lightBg(s)
   kicker(s, '구성')
   heading(s, '시스템 구성')
-  subheading(s, '병원별 독립 인스턴스로 구축합니다. 데이터베이스와 도메인이 병원마다 분리되므로 타 병원과 데이터가 섞이지 않습니다.')
+  subheading(s, '피움은 병원별 독립 인스턴스로 구축합니다. 데이터베이스와 도메인이 병원마다 분리되므로 타 병원과 데이터가 섞이지 않습니다.')
 
   const layers = [
     ['접점', ['환자 모바일 웹', '카카오 채널', '데스크 관리자', '의료진 화면', '경영 대시보드'], 'teal'],
@@ -810,21 +822,21 @@ function lightBg(slide) {
 
   const plans = [
     {
-      name: 'Core', price: '구축비 + 월 운영비 · 협의',
+      name: '피움 Core', price: '구축비 + 월 운영비 · 협의',
       who: '의료진 3인 이하 / 예약 시스템 첫 도입',
       items: ['환자 예약 웹 & 데스크 관리자', '의료진 스케줄 & 변경 승인', '카카오 알림톡 7종', '기본 통계 대시보드'],
       hl: false,
     },
     {
-      name: 'Smart', price: '구축비 + 월 운영비 · 협의',
+      name: '피움 Smart', price: '구축비 + 월 운영비 · 협의',
       who: '의료진 4–10인 / 노쇼와 콜 부하가 실제 비용인 병원',
-      items: ['Core 전체 포함', 'AI 노쇼 예측 & 오버부킹', '24시간 AI 예약 상담', '주기 기반 자동 리콜', '이탈 예측 & 리텐션', '분기 지표 리포트'],
+      items: ['피움 Core 전체 포함', 'AI 노쇼 예측 & 오버부킹', '24시간 AI 예약 상담', '주기 기반 자동 리콜', '이탈 예측 & 리텐션', '분기 지표 리포트'],
       hl: true,
     },
     {
-      name: 'Enterprise', price: '전체 별도 협의',
+      name: '피움 Enterprise', price: '전체 별도 협의',
       who: '다지점 운영 / EMR 연계 및 전용 요건',
-      items: ['Smart 전체 포함', 'AI 모듈 8종 전체', 'EMR 연계 개발', '지점 통합 대시보드', '전용 기능 개발 & 전담 지원'],
+      items: ['피움 Smart 전체 포함', 'AI 모듈 8종 전체', 'EMR 연계 개발', '지점 통합 대시보드', '전용 기능 개발 & 전담 지원'],
       hl: false,
     },
   ]
@@ -923,7 +935,7 @@ function lightBg(slide) {
     })
   })
 
-  s.addText('난임 전문병원 AI 스마트 CRM · 사업 소개서 · Rev. 1.0', {
+  s.addText('피움 (Pium) · 난임 전문병원 AI 스마트 CRM · 사업 소개서 · Rev. 1.0', {
     x: M, y: 6.68, w: CW, h: 0.3,
     fontFace: F, fontSize: 10, color: '4E706D', margin: 0, valign: 'middle',
   })
