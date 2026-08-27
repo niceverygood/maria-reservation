@@ -6,6 +6,13 @@
  */
 
 import prisma from '@/lib/db'
+import {
+  getBlockedTimeRecords,
+  getBlockedTimesForDate,
+  removeBlockedSlots,
+  selectBlocksFor,
+  type BlockedTimeRecord,
+} from '@/lib/reservation/blockedTimes'
 
 interface SlotSummary {
   doctorId: string
@@ -40,7 +47,8 @@ async function calculateDaySlots(
   date: string,
   templates: { doctorId: string; dayOfWeek: number; startTime: string; endTime: string; slotIntervalMinutes: number }[],
   exceptions: Map<string, { type: string; customStart?: string | null; customEnd?: string | null; customInterval?: number | null }>,
-  bookedCounts: Map<string, number>
+  bookedCounts: Map<string, number>,
+  blockedTimes: BlockedTimeRecord[]
 ): Promise<SlotSummary> {
   const targetDate = new Date(date + 'T00:00:00')
   const dayOfWeek = targetDate.getDay()
@@ -66,6 +74,12 @@ async function calculateDaySlots(
 
   // 중복 제거
   allSlots = [...new Set(allSlots)]
+
+  // 차단 시간대 제외
+  allSlots = removeBlockedSlots(
+    allSlots,
+    selectBlocksFor(blockedTimes, doctorId, date, dayOfWeek)
+  )
 
   const totalSlots = allSlots.length
   const bookedSlots = bookedCounts.get(`${doctorId}:${date}`) || 0
@@ -96,7 +110,7 @@ export async function precomputeSlotSummaries(days: number = 28): Promise<{ upda
     const endDate = dates[dates.length - 1]
 
     // 필요한 모든 데이터를 한 번에 조회
-    const [doctors, templates, exceptions, bookings] = await Promise.all([
+    const [doctors, templates, exceptions, bookings, blockedTimes] = await Promise.all([
       prisma.doctor.findMany({
         where: { isActive: true },
         select: { id: true },
@@ -117,6 +131,7 @@ export async function precomputeSlotSummaries(days: number = 28): Promise<{ upda
         },
         _count: { id: true },
       }),
+      getBlockedTimeRecords(startDate, endDate),
     ])
 
     // 예외 Map
@@ -134,7 +149,7 @@ export async function precomputeSlotSummaries(days: number = 28): Promise<{ upda
     // 모든 의사 × 모든 날짜에 대해 계산
     for (const doctor of doctors) {
       for (const date of dates) {
-        const summary = await calculateDaySlots(doctor.id, date, templates, exceptionMap, bookedMap)
+        const summary = await calculateDaySlots(doctor.id, date, templates, exceptionMap, bookedMap, blockedTimes)
         summaries.push(summary)
       }
     }
@@ -171,7 +186,7 @@ export async function updateSlotSummary(doctorId: string, date: string): Promise
     const targetDate = new Date(date + 'T00:00:00')
     const dayOfWeek = targetDate.getDay()
 
-    const [templates, exception, bookedCount] = await Promise.all([
+    const [templates, exception, bookedCount, blockedTimes] = await Promise.all([
       prisma.scheduleTemplate.findMany({
         where: { doctorId, dayOfWeek, isActive: true },
         select: { startTime: true, endTime: true, slotIntervalMinutes: true },
@@ -182,6 +197,7 @@ export async function updateSlotSummary(doctorId: string, date: string): Promise
       prisma.appointment.count({
         where: { doctorId, date, status: { in: ['PENDING', 'BOOKED'] } },
       }),
+      getBlockedTimesForDate(doctorId, date, dayOfWeek),
     ])
 
     // 휴진일 체크
@@ -204,6 +220,9 @@ export async function updateSlotSummary(doctorId: string, date: string): Promise
       }
     }
     allSlots = [...new Set(allSlots)]
+
+    // 차단 시간대 제외
+    allSlots = removeBlockedSlots(allSlots, blockedTimes)
 
     const totalSlots = allSlots.length
     const availableSlots = Math.max(0, totalSlots - bookedCount)

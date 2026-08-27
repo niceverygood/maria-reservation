@@ -5,6 +5,7 @@
  */
 
 import prisma from '@/lib/db'
+import { getBlockedTimesForDate, removeBlockedSlots } from '@/lib/reservation/blockedTimes'
 
 // 시간 문자열을 분으로 변환 (예: "09:30" -> 570)
 export function timeToMinutes(time: string): number {
@@ -118,6 +119,10 @@ export async function getAvailableSlots(
 
   // 중복 제거 및 정렬
   allSlots = [...new Set(allSlots)].sort()
+
+  // 3-1. 차단 시간대 제외 (같은 날짜에 여러 건 등록 가능)
+  const blockedTimes = await getBlockedTimesForDate(doctorId, date, dayOfWeek)
+  allSlots = removeBlockedSlots(allSlots, blockedTimes)
 
   // 4. 해당 날짜의 기존 예약 조회 (취소 제외)
   const existingAppointments = await prisma.appointment.findMany({
