@@ -680,7 +680,7 @@
      ============================================================ */
   .kpis {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(252px, 1fr));
     gap: 1px;
     background: var(--rule);
     border: 1px solid var(--rule);
@@ -778,6 +778,101 @@
   /* ============================================================
      MOTION
      ============================================================ */
+  /* ============================================================
+     ROI / PRICING / PHASE META
+     ============================================================ */
+  td.figure, th.figure {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  td.figure { font-weight: 700; color: var(--ink); }
+  td.formula { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+  tr.row-sum > * {
+    border-top: 2px solid var(--rule-strong);
+    font-weight: 700;
+    color: var(--ink);
+  }
+  tr.row-net > * {
+    background: var(--teal-wash);
+    color: var(--teal);
+    font-weight: 800;
+    border-bottom-color: var(--rule-strong);
+  }
+  tr.row-cost > * { color: var(--muted); }
+
+  .payback {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .payback-cell { background: var(--surface); padding: 20px 20px 22px; display: grid; gap: 6px; }
+  .payback-cell .pv {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -.04em;
+    color: var(--teal);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .payback-cell .pv small { font-size: 15px; font-weight: 700; }
+  .payback-cell .pl { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+  .phase-meta { margin-top: 12px; display: grid; gap: 7px; }
+  .phase-meta > div { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 12px; }
+  .phase-meta dt {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-top: 3px;
+  }
+  .phase-meta dd { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.6; }
+  @media (max-width: 620px) {
+    .phase-meta > div { grid-template-columns: 1fr; gap: 2px; }
+  }
+
+  .price-block { display: grid; gap: 4px; padding-bottom: 2px; }
+  .price-main {
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -.04em;
+    color: var(--teal);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+  .price-main small { font-size: 14px; font-weight: 700; letter-spacing: 0; }
+  .price-sub {
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .price-sub b { color: var(--ink-2); font-weight: 700; }
+
+  .terms {
+    margin-top: 26px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 18px 28px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+  }
+  .term { display: grid; gap: 5px; align-content: start; }
+  .term dt {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .term dd { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.6; }
+  .term dd b { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+
   .reveal {
     opacity: 0;
     transform: translateY(14px);
@@ -1210,112 +1305,286 @@
       <!-- 05 ================================================== -->
       <section id="s5" class="reveal">
         <div class="sec-head">
-          <div class="tag mono"><b>05</b> — 효과</div>
-          <h2>도입 기대 효과</h2>
+          <div class="tag mono"><b>05</b> &mdash; 성과</div>
+          <h2>도입 후 성과를 어떻게 만들고, 어떻게 증명하는가</h2>
           <p class="sub">
-            아래는 시스템이 관리하는 지표와, 도입 후 병원과 함께 추적할 목표치입니다.
-            도입 첫 달을 기준선(baseline)으로 측정하고, 분기마다 실측값을 리포트로 제공합니다.
+            먼저 마리아병원에서 무엇을 실제로 구축해 운영 중인지 밝히고,
+            그 구조가 귀 병원에서 어떤 금액으로 환산되는지 산출식으로 보여드립니다.
           </p>
         </div>
 
+        <h3 style="font-size:17px;font-weight:800;margin-bottom:14px;">레퍼런스 &mdash; 마리아병원에서 운영 중인 범위</h3>
+        <div class="sec-grid">
+          <div class="sec-item">
+            <h4>주기 기반 재진 예약</h4>
+            <p>D1 주기 시작부터 과배란&middot;배란 모니터링&middot;채취&middot;이식&middot;판정까지, 진료 단계별로 다른 예약 규칙을 적용합니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>다지점 운영</h4>
+            <p>본원과 일산&middot;평촌 지점이 각각의 의료진 스케줄과 예외일 규칙으로 동시에 운영되고 있습니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>카카오 알림톡 7종</h4>
+            <p>예약 확정&middot;변경&middot;취소&middot;리마인더&middot;대기 알림 등 7개 시나리오가 자동 발송됩니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>의료진 스케줄 관리</h4>
+            <p>요일별 템플릿, 예외일(휴진&middot;단축&middot;시간대 차단), 슬롯별 정원 설정을 데스크가 직접 운영합니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>슬롯 사전 계산</h4>
+            <p>4주치 예약 가능 슬롯을 야간 배치로 미리 계산해, 달력 조회가 예약 건수와 무관하게 일정한 속도를 유지합니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>변경 요청 승인 흐름</h4>
+            <p>환자의 변경&middot;취소 요청이 데스크 승인 절차를 거쳐 반영되며, 모든 이력이 기록으로 남습니다.</p>
+          </div>
+        </div>
+
+        <p class="disclaimer" style="margin-top:22px;">
+          마리아병원의 노쇼율&middot;콜 인입량 같은 <strong>실측 운영 수치는 병원의 자산이므로 공개하지 않습니다.</strong>
+          영업 자료에 남의 병원 숫자를 쓰지 않는 것이 저희 원칙입니다.
+          대신 아래에 산출 근거를 전부 열어두었으니, 귀 병원의 숫자를 넣어 직접 검증해 주십시오.
+        </p>
+
+        <h3 style="font-size:17px;font-weight:800;margin:44px 0 6px;">성과 산출 모델</h3>
+        <p class="sub" style="margin-bottom:16px;">
+          아래 예시는 <strong>의료진 6인 / 월 예약 2,400건</strong> 규모 병원을 가정한 계산입니다.
+          입력값은 모두 사전 진단에서 귀 병원의 실측치로 대체됩니다.
+        </p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">효과 항목</th>
+                <th scope="col">산출식</th>
+                <th scope="col">예시 입력값</th>
+                <th scope="col" class="figure">월 효과</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">노쇼 감소</th>
+                <td class="formula">예약수 &times; 노쇼율 &times; 감소율 &times; 건당 진료수익</td>
+                <td class="mid">2,400건 &times; 12% &times; 30% &times; 8만원</td>
+                <td class="figure">691만원</td>
+              </tr>
+              <tr>
+                <th scope="row">시술 슬롯 공실 회복</th>
+                <td class="formula">월 공실 슬롯 &times; 대체 배정률 &times; 슬롯 기여수익</td>
+                <td class="mid">40슬롯 &times; 30% &times; 25만원</td>
+                <td class="figure">300만원</td>
+              </tr>
+              <tr>
+                <th scope="row">데스크 콜 절감</th>
+                <td class="formula">월 콜수 &times; 셀프 전환율 &times; 콜당 처리시간 &times; 인건비</td>
+                <td class="mid">1,800콜 &times; 40% &times; 3분 &times; 2.2만원/h</td>
+                <td class="figure">79만원</td>
+              </tr>
+              <tr>
+                <th scope="row">주기 리콜 재진입</th>
+                <td class="formula">판정 후 미재방문 &times; 리콜 반응률 &times; 건당 수익</td>
+                <td class="mid">60명 &times; 15% &times; 8만원</td>
+                <td class="figure">72만원</td>
+              </tr>
+              <tr class="row-sum">
+                <th scope="row">합계 (이론치)</th>
+                <td class="formula">&mdash;</td>
+                <td class="mid">4개 항목 단순 합</td>
+                <td class="figure">1,142만원</td>
+              </tr>
+              <tr>
+                <th scope="row">보수 반영</th>
+                <td class="formula">합계 &times; 달성률 50%</td>
+                <td class="mid">현장 정착 편차를 감안한 할인</td>
+                <td class="figure">571만원</td>
+              </tr>
+              <tr class="row-cost">
+                <th scope="row">차감 &mdash; 월 구독료</th>
+                <td class="formula">피움 Smart 기준</td>
+                <td class="mid">의료진 4&ndash;10인 구간</td>
+                <td class="figure">&minus;169만원</td>
+              </tr>
+              <tr class="row-cost">
+                <th scope="row">차감 &mdash; 발송 실비</th>
+                <td class="formula">알림톡 건당 9원 &times; 발송량</td>
+                <td class="mid">예약 1건당 평균 4회 발송</td>
+                <td class="figure">&minus;9만원</td>
+              </tr>
+              <tr class="row-net">
+                <th scope="row">월 순효과</th>
+                <td class="formula">보수 반영 &minus; 월 비용</td>
+                <td class="mid">2개월차부터 반복 발생</td>
+                <td class="figure">393만원</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="payback">
+          <div class="payback-cell">
+            <div class="pv">약 6<small>개월</small></div>
+            <div class="pl">구축비 2,400만원 &divide; 월 순효과 393만원. 보수 시나리오 기준 투자 회수 시점입니다.</div>
+          </div>
+          <div class="payback-cell">
+            <div class="pv">4,716<small>만원</small></div>
+            <div class="pl">도입 1년 후 누적 순효과. 구축비를 차감하면 순증 2,316만원입니다.</div>
+          </div>
+          <div class="payback-cell">
+            <div class="pv">50<small>%</small></div>
+            <div class="pl">이론치 대비 적용한 달성률. 절반만 실현돼도 위 회수 기간이 성립하도록 잡았습니다.</div>
+          </div>
+        </div>
+
+        <h3 style="font-size:17px;font-weight:800;margin:44px 0 6px;">성과를 증명하는 방식</h3>
+        <p class="sub" style="margin-bottom:16px;">
+          도입 첫 달을 기준선으로 고정하고, 같은 지표를 같은 방식으로 매 분기 측정해 리포트로 제출합니다.
+        </p>
         <div class="kpis">
           <div class="kpi">
-            <div class="label">예약 전화 인입</div>
-            <div class="val">감소</div>
-            <div class="how">웹·카카오 셀프 예약 비중 전환율로 측정</div>
-          </div>
-          <div class="kpi">
             <div class="label">노쇼율</div>
-            <div class="val">감소</div>
-            <div class="how">리마인더 + 노쇼 예측 확인 발송 적용 전후 비교</div>
+            <div class="val">추적</div>
+            <div class="how">예약 대비 미방문 비율. 리마인더 발송 전후를 같은 요일&middot;시간대로 비교합니다.</div>
           </div>
           <div class="kpi">
-            <div class="label">시술 슬롯 가동률</div>
-            <div class="val">상승</div>
-            <div class="how">공실 슬롯 대체 배정 건수로 측정</div>
+            <div class="label">셀프 예약 비중</div>
+            <div class="val">추적</div>
+            <div class="how">전체 예약 중 웹&middot;카카오 경유 비율. 데스크 콜 부하와 직결됩니다.</div>
+          </div>
+          <div class="kpi">
+            <div class="label">슬롯 가동률</div>
+            <div class="val">추적</div>
+            <div class="how">개설 슬롯 대비 실제 진료 건수. 공실 슬롯의 대체 배정 건수를 함께 셉니다.</div>
           </div>
           <div class="kpi">
             <div class="label">주기 재진입률</div>
-            <div class="val">상승</div>
-            <div class="how">판정 후 90일 내 재방문 비율</div>
+            <div class="val">추적</div>
+            <div class="how">판정 후 90일 내 재방문 비율. 리콜 발송 대상군과 비대상군을 나눠 봅니다.</div>
           </div>
           <div class="kpi">
-            <div class="label">예약 처리 시간</div>
-            <div class="val">단축</div>
-            <div class="how">건당 데스크 처리 소요 시간</div>
+            <div class="label">건당 처리 시간</div>
+            <div class="val">추적</div>
+            <div class="how">예약 1건을 데스크가 처리하는 데 걸리는 시간. 도입 전 실측치와 비교합니다.</div>
           </div>
           <div class="kpi">
-            <div class="label">데이터 정합성</div>
-            <div class="val">개선</div>
-            <div class="how">EMR 미반영 예약 건수 추이</div>
+            <div class="label">변경 요청 처리</div>
+            <div class="val">추적</div>
+            <div class="how">환자 변경&middot;취소 요청의 접수부터 확정까지 소요 시간과 누락 건수.</div>
           </div>
         </div>
 
         <p class="disclaimer">
-          구체적 개선 수치는 병원의 현재 운영 방식·환자 구성·기존 시스템 유무에 따라 편차가 큽니다.
-          저희는 사전 진단 단계에서 귀 병원의 실제 데이터를 확인한 뒤, <strong>숫자로 약속 가능한 목표치</strong>를 별도 제안서에 명시해 드립니다.
-          검증되지 않은 일반화된 수치를 앞세우지 않는 것이 저희 원칙입니다.
+          위 예시 입력값은 <strong>가정치이며 특정 병원의 실적이 아닙니다.</strong>
+          노쇼율&middot;진료 단가&middot;콜 인입량은 병원마다 편차가 크기 때문에, 이 표는 &lsquo;약속&rsquo;이 아니라
+          <strong>귀 병원 숫자를 대입해 검증하는 계산기</strong>로 쓰시는 것이 맞습니다.
+          사전 진단에서 실측치를 확인한 뒤, 숫자로 약속 가능한 목표치만 별도 제안서에 명시합니다.
         </p>
       </section>
 
       <!-- 06 ================================================== -->
       <section id="s6" class="reveal">
         <div class="sec-head">
-          <div class="tag mono"><b>06</b> — 일정</div>
-          <h2>도입 절차 — 표준 12주</h2>
+          <div class="tag mono"><b>06</b> &mdash; 도입</div>
+          <h2>도입 방안 &mdash; 표준 12주</h2>
           <p class="sub">
-            코어가 이미 완성되어 있으므로, 기간의 대부분은 개발이 아니라 <strong>귀 병원의 진료 규칙을 시스템에 반영하는 작업</strong>에 쓰입니다.
+            코어가 이미 완성되어 있으므로 기간의 대부분은 개발이 아니라
+            <strong>귀 병원의 진료 규칙을 시스템에 반영하는 작업</strong>에 쓰입니다.
+            단계마다 병원에서 필요한 시간과 그 결과로 손에 남는 산출물을 함께 적었습니다.
           </p>
         </div>
 
         <div class="phases">
           <div class="phase">
             <div class="phase-n num">01</div>
-            <div class="phase-when">1 – 2주차</div>
+            <div class="phase-when">1 &ndash; 2주차</div>
             <div>
               <h4>진단 &amp; 요건 확정</h4>
-              <p>현행 예약·상담 프로세스 관찰, 의료진 스케줄 규칙 정리, EMR 환경 확인, 기준 지표 측정</p>
+              <p>현행 예약&middot;상담 프로세스 관찰, 의료진 스케줄 규칙 정리, EMR 환경 확인, 기준 지표 측정</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>원무팀장 1인 &times; 주 4시간, 대표원장 1회 60분 인터뷰</dd></div>
+                <div><dt>산출물</dt><dd>현행 프로세스 진단서, 기준 지표 실측치, 요건 정의서</dd></div>
+              </div>
             </div>
           </div>
           <div class="phase">
             <div class="phase-n num">02</div>
-            <div class="phase-when">3 – 5주차</div>
+            <div class="phase-when">3 &ndash; 5주차</div>
             <div>
               <h4>코어 구축 &amp; 병원 맞춤 설정</h4>
-              <p>전용 인스턴스 생성, 의료진·진료과·슬롯 규칙 설정, 브랜드 디자인 적용, 도메인 연결</p>
+              <p>전용 인스턴스 생성, 의료진&middot;진료과&middot;슬롯 규칙 설정, 브랜드 디자인 적용, 도메인 연결</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>의료진별 진료 시간표 확정본 제공, 중간 검수 1회 90분</dd></div>
+                <div><dt>산출물</dt><dd>병원 전용 스테이징 환경, 스케줄 규칙 설정 완료본</dd></div>
+              </div>
             </div>
           </div>
           <div class="phase">
             <div class="phase-n num">03</div>
-            <div class="phase-when">5 – 7주차</div>
+            <div class="phase-when">5 &ndash; 7주차</div>
             <div>
               <h4>알림톡 &amp; 채널 연동</h4>
-              <p>카카오 채널 개설, 알림톡 템플릿 등록·심사, 본인인증 연동, 발송 시나리오 검증</p>
+              <p>카카오 채널 개설, 알림톡 템플릿 등록&middot;심사, 본인인증 연동, 발송 시나리오 검증</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>사업자등록증&middot;채널 명의 등록 협조, 발송 문구 검수 1회</dd></div>
+                <div><dt>산출물</dt><dd>알림톡 템플릿 7종 심사 통과, 발송 테스트 리포트</dd></div>
+              </div>
             </div>
           </div>
           <div class="phase">
             <div class="phase-n num">04</div>
-            <div class="phase-when">6 – 9주차</div>
+            <div class="phase-when">6 &ndash; 9주차</div>
             <div>
               <h4>AI 모듈 적용</h4>
               <p>과거 예약 데이터 이관 후 예측 모델 기준선 학습, 우선순위 높은 모듈부터 순차 활성화</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>최근 6개월 이상 예약&middot;방문 이력 데이터 제공</dd></div>
+                <div><dt>산출물</dt><dd>노쇼 예측 기준선 모델, 모듈별 on/off 운영 스위치</dd></div>
+              </div>
             </div>
           </div>
           <div class="phase">
             <div class="phase-n num">05</div>
-            <div class="phase-when">9 – 10주차</div>
+            <div class="phase-when">9 &ndash; 10주차</div>
             <div>
               <h4>데스크 교육 &amp; 병행 운영</h4>
-              <p>실사용자 교육, 기존 방식과 2주 병행 운영으로 리스크 제거, 현장 피드백 반영</p>
+              <p>실사용자 교육 후 기존 방식과 2주간 병행 운영해 전환 리스크를 제거하고 현장 피드백을 반영</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>데스크 전원 2시간 교육 &times; 2회, 2주 병행 입력</dd></div>
+                <div><dt>산출물</dt><dd>운영 매뉴얼, 교육 이수 확인, 피드백 반영 목록</dd></div>
+              </div>
             </div>
           </div>
           <div class="phase">
             <div class="phase-n num">06</div>
-            <div class="phase-when">11 – 12주차</div>
+            <div class="phase-when">11 &ndash; 12주차</div>
             <div>
               <h4>정식 오픈 &amp; 안정화</h4>
-              <p>전면 전환, 초기 2주 밀착 대응, 지표 리포트 체계 가동</p>
+              <p>전면 전환 후 초기 2주 밀착 대응, 지표 리포트 체계 가동</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>오픈 당일 원무팀 입회, 이후 상시 운영</dd></div>
+                <div><dt>산출물</dt><dd>운영 전환 완료, 기준선 지표 리포트 1호</dd></div>
+              </div>
             </div>
+          </div>
+        </div>
+
+        <div class="terms">
+          <div class="term">
+            <dt>병원 총 투입</dt>
+            <dd>12주 합계 <b>약 40시간</b>. 대부분 1&ndash;2주차 진단과 9&ndash;10주차 교육에 집중됩니다.</dd>
+          </div>
+          <div class="term">
+            <dt>단축 가능 조건</dt>
+            <dd>EMR 연계가 없고 의료진 10인 이하인 경우 <b>8주</b>까지 단축됩니다.</dd>
+          </div>
+          <div class="term">
+            <dt>병행 운영</dt>
+            <dd>기존 방식을 <b>2주간 함께</b> 돌린 뒤 전환하므로 오픈일에 예약이 멈추지 않습니다.</dd>
+          </div>
+          <div class="term">
+            <dt>중단 지점</dt>
+            <dd>5주차 검수에서 요건 불일치가 확인되면 <b>위약금 없이</b> 중단할 수 있습니다.</dd>
           </div>
         </div>
       </section>
@@ -1361,56 +1630,130 @@
       <!-- 08 ================================================== -->
       <section id="s8" class="reveal">
         <div class="sec-head">
-          <div class="tag mono"><b>08</b> — 비용</div>
-          <h2>도입 방식과 비용</h2>
+          <div class="tag mono"><b>08</b> &mdash; 비용</div>
+          <h2>월 구독료와 구축비</h2>
           <p class="sub">
-            초기 구축비와 월 운영비로 구성합니다. 병원 규모(진료 의료진 수·월 예약 건수)와 선택 모듈에 따라 조정되며,
-            아래 구성은 협의 기준안입니다.
+            1회 구축비와 월 구독료로 구성합니다. 구간은 <strong>동시 진료 의료진 수</strong>로 나뉘며,
+            월 예약 건수에 따른 추가 과금은 없습니다.
           </p>
         </div>
 
         <div class="plans">
           <div class="plan">
             <h3>피움 Core</h3>
-            <div class="price"><span class="tbd">구축비 별도협의</span> + 월 <span class="tbd">협의</span></div>
-            <p class="who">의료진 3인 이하 / 예약 시스템을 처음 도입하는 병원</p>
+            <div class="price-block">
+              <div class="price-main">월 79<small>만원</small></div>
+              <div class="price-sub">구축비 <b>1,200만원</b> &middot; 1회</div>
+            </div>
+            <p class="who">의료진 3인 이하 &middot; 예약 시스템을 처음 도입하는 병원</p>
             <ul>
               <li>환자 예약 웹 &amp; 데스크 관리자</li>
-              <li>의료진 스케줄 &amp; 변경 승인</li>
+              <li>의료진 스케줄 &amp; 예외일 관리</li>
+              <li>변경&middot;취소 요청 승인 흐름</li>
               <li>카카오 알림톡 7종</li>
               <li>기본 통계 대시보드</li>
+              <li>평일 09&ndash;18시 지원</li>
             </ul>
           </div>
           <div class="plan feature">
             <h3>피움 Smart <span class="pill new">권장</span></h3>
-            <div class="price"><span class="tbd">구축비 별도협의</span> + 월 <span class="tbd">협의</span></div>
-            <p class="who">의료진 4&ndash;10인 / 노쇼와 콜 부하가 실제 비용이 되는 병원</p>
+            <div class="price-block">
+              <div class="price-main">월 169<small>만원</small></div>
+              <div class="price-sub">구축비 <b>2,400만원</b> &middot; 1회</div>
+            </div>
+            <p class="who">의료진 4&ndash;10인 &middot; 노쇼와 콜 부하가 실제 비용이 되는 병원</p>
             <ul>
               <li>Core 전체 포함</li>
-              <li>AI 노쇼 예측 &amp; 스마트 오버부킹</li>
+              <li>AI 노쇼 예측 &amp; 오버부킹</li>
               <li>24시간 AI 예약 상담</li>
               <li>주기 기반 자동 리콜</li>
               <li>이탈 예측 &amp; 리텐션 캠페인</li>
-              <li>분기 지표 리포트</li>
+              <li>분기 성과 리포트</li>
+              <li>평일 09&ndash;20시 &middot; 토 오전 지원</li>
             </ul>
           </div>
           <div class="plan">
             <h3>피움 Enterprise</h3>
-            <div class="price"><span class="tbd">전체 별도협의</span></div>
-            <p class="who">다지점 운영 / EMR 연계 및 전용 요건이 있는 병원</p>
+            <div class="price-block">
+              <div class="price-main">월 320<small>만원~</small></div>
+              <div class="price-sub">구축비 <b>4,000만원~</b> &middot; 범위에 따라 산정</div>
+            </div>
+            <p class="who">의료진 11인 이상 &middot; 다지점 운영 또는 EMR 연계가 필요한 병원</p>
             <ul>
               <li>Smart 전체 포함</li>
               <li>AI 모듈 8종 전체</li>
               <li>EMR 연계 개발</li>
               <li>지점 통합 대시보드</li>
-              <li>전용 기능 개발 &amp; 전담 지원</li>
+              <li>전용 기능 개발</li>
+              <li>전담 매니저 &amp; 24시간 장애 대응</li>
             </ul>
           </div>
         </div>
 
+        <h3 style="font-size:17px;font-weight:800;margin:40px 0 6px;">실비 항목</h3>
+        <p class="sub" style="margin-bottom:14px;">
+          외부 서비스 비용은 마진 없이 <strong>사용량 실비로 청구</strong>합니다. 아래는 기준 단가입니다.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">항목</th>
+                <th scope="col">기준 단가</th>
+                <th scope="col">월 예약 2,400건 기준 예상액</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">카카오 알림톡</th>
+                <td>건당 9원</td>
+                <td class="mid">약 86,000원 &mdash; 예약 1건당 평균 4회 발송</td>
+              </tr>
+              <tr>
+                <th scope="row">휴대폰 본인인증</th>
+                <td>건당 55원</td>
+                <td class="mid">약 17,000원 &mdash; 신규 가입 건에만 발생</td>
+              </tr>
+              <tr>
+                <th scope="row">클라우드 인프라</th>
+                <td>구독료에 포함</td>
+                <td class="mid">별도 청구 없음 &mdash; Enterprise 전용 인프라는 별도</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="terms">
+          <div class="term">
+            <dt>계약 기간</dt>
+            <dd>정식 오픈일로부터 <b>12개월</b>. 이후 월 단위 자동 연장됩니다.</dd>
+          </div>
+          <div class="term">
+            <dt>연 선납 할인</dt>
+            <dd>12개월분 선납 시 구독료 <b>10% 할인</b>. Smart 기준 연 203만원 절감.</dd>
+          </div>
+          <div class="term">
+            <dt>하자 보수</dt>
+            <dd>오픈 후 <b>3개월</b> 무상. 구축 범위 내 결함은 기간 제한 없이 무상 수정합니다.</dd>
+          </div>
+          <div class="term">
+            <dt>구독료 개시</dt>
+            <dd><b>정식 오픈 다음 달부터</b> 청구합니다. 구축 기간 12주 동안은 발생하지 않습니다.</dd>
+          </div>
+          <div class="term">
+            <dt>플랜 변경</dt>
+            <dd>의료진 증원 시 상위 구간으로 <b>차액만</b> 조정. 하향도 가능합니다.</dd>
+          </div>
+          <div class="term">
+            <dt>데이터 소유권</dt>
+            <dd>모든 진료&middot;예약 데이터는 <b>병원 소유</b>입니다. 해지 시 전량 반출해 드립니다.</dd>
+          </div>
+        </div>
+
         <p class="disclaimer">
-          카카오 알림톡 발송 단가와 본인인증 건당 비용 등 외부 서비스 실비는 별도이며, 사용량 기준으로 청구됩니다.
-          위 <span class="tbd">협의</span> 항목은 병원 규모 확인 후 확정 견적으로 대체됩니다.
+          위 금액은 <span class="tbd">표준 정가 기준</span>이며 부가세 별도입니다.
+          기존 시스템에서의 데이터 이관 범위, EMR 연계 대상, 요청하시는 전용 기능에 따라 조정될 수 있습니다.
+          사전 진단 후 <strong>확정 견적서</strong>로 대체해 드립니다.
         </p>
       </section>
 
