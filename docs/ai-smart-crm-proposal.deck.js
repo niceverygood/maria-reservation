@@ -171,7 +171,7 @@ function lightBg(slide) {
     })
   })
 
-  s.addText('피움 (Pium) · 사업 소개서 · Rev. 1.0', {
+  s.addText('피움 (Pium) · 사업 소개서 · Rev. 1.1', {
     x: W - M - 3.2, y: 6.5, w: 3.2, h: 0.28,
     align: 'right', fontFace: F, fontSize: 10.5, color: '6E918D', margin: 0, valign: 'middle',
   })
@@ -675,98 +675,216 @@ function lightBg(slide) {
 }
 
 /* ===============================================================
-   11 — 기대 효과
+   11 — 성과 산출 모델
    =============================================================== */
 {
   const s = pres.addSlide()
   lightBg(s)
-  kicker(s, '효과')
-  heading(s, '무엇을, 어떻게 측정할 것인가')
-  subheading(s, '도입 첫 달을 기준선으로 측정하고, 분기마다 실측값을 리포트로 제공합니다.')
+  kicker(s, '성과')
+  heading(s, '성과를 숫자로 환산하는 방법')
+  subheading(s, '의료진 6인 · 월 예약 2,400건 규모를 가정한 예시입니다. 입력값은 사전 진단에서 귀 병원 실측치로 대체됩니다. 이 표는 약속이 아니라, 병원이 자기 숫자로 검증하는 계산 모델입니다.', { h: 0.6 })
 
-  const kpis = [
-    ['예약 전화 인입', '감소', '웹 · 카카오 셀프 예약 전환율'],
-    ['노쇼율', '감소', '리마인더 + 예측 확인 발송 전후 비교'],
-    ['시술 슬롯 가동률', '상승', '공실 슬롯 대체 배정 건수'],
-    ['주기 재진입률', '상승', '판정 후 90일 내 재방문 비율'],
-    ['예약 처리 시간', '단축', '건당 데스크 처리 소요 시간'],
-    ['데이터 정합성', '개선', 'EMR 미반영 예약 건수 추이'],
+  const hdr = ['효과 항목', '산출식', '예시 입력값', '월 효과']
+  const body = [
+    ['노쇼 감소', '예약수 × 노쇼율 × 감소율 × 건당 진료수익', '2,400건 × 12% × 30% × 8만원', '691만원'],
+    ['시술 슬롯 공실 회복', '월 공실 슬롯 × 대체 배정률 × 슬롯 기여수익', '40슬롯 × 30% × 25만원', '300만원'],
+    ['데스크 콜 절감', '월 콜수 × 셀프 전환율 × 처리시간 × 인건비', '1,800콜 × 40% × 3분 × 2.2만원/h', '79만원'],
+    ['주기 리콜 재진입', '판정 후 미재방문 × 리콜 반응률 × 건당 수익', '60명 × 15% × 8만원', '72만원'],
+  ]
+  const tail = [
+    ['합계 (이론치)', '4개 항목 단순 합', '—', '1,142만원'],
+    ['보수 반영', '합계 × 달성률 50%', '현장 정착 편차를 감안한 할인', '571만원'],
   ]
 
-  const cw = (CW - 0.44 * 2) / 3
-  kpis.forEach((k, i) => {
-    const col = i % 3
-    const row = Math.floor(i / 3)
-    const x = M + col * (cw + 0.44)
-    const y = 2.2 + row * 1.72
+  const none = { type: 'none' }
+  const line = (pt, color) => [none, none, { pt, color }, none]
 
-    card(s, x, y, cw, 1.42, 'plain')
-    s.addText(k[0], {
-      x: x + 0.32, y: y + 0.2, w: cw - 0.64, h: 0.3,
-      fontFace: F, fontSize: 13, bold: true, color: C.ink, margin: 0, valign: 'middle',
+  const rows = []
+  rows.push(hdr.map((t, i) => ({
+    text: t,
+    options: {
+      bold: true, fontSize: 10, color: C.faint, fill: { color: C.paper },
+      align: i === 3 ? 'right' : 'left', border: line(1.4, C.ink), valign: 'bottom',
+    },
+  })))
+  body.forEach((r) => {
+    rows.push(r.map((t, i) => ({
+      text: t,
+      options: {
+        fontSize: i === 1 ? 10.5 : 11.5,
+        bold: i === 0 || i === 3,
+        color: i === 0 ? C.ink : (i === 3 ? C.ink : C.muted),
+        align: i === 3 ? 'right' : 'left',
+        border: line(0.5, C.rule), valign: 'middle',
+      },
+    })))
+  })
+  tail.forEach((r, k) => {
+    rows.push(r.map((t, i) => ({
+      text: t,
+      options: {
+        fontSize: i === 1 ? 10.5 : 11.5, bold: true,
+        color: i === 1 || i === 2 ? C.muted : C.ink,
+        align: i === 3 ? 'right' : 'left',
+        fill: k === 1 ? { color: C.tealTint } : undefined,
+        border: line(k === 0 ? 1.2 : 0.5, k === 0 ? C.tealLine : C.rule),
+        valign: 'middle',
+      },
+    })))
+  })
+
+  s.addTable(rows, {
+    x: M, y: 2.36, w: CW, colW: [2.7, 4.3, 3.3, 1.793], rowH: 0.35,
+    fontFace: F, margin: [4, 6, 4, 0],
+  })
+
+  const sums = [
+    ['월 순효과', '393만원', '보수 반영 571만원 − 구독료 169만원 − 발송 실비 9만원'],
+    ['투자 회수', '약 6개월', '구축비 2,400만원 ÷ 월 순효과 393만원'],
+    ['1년 누적 순증', '2,316만원', '연 순효과 4,716만원 − 구축비 2,400만원'],
+  ]
+  const scw = (CW - 0.44 * 2) / 3
+  sums.forEach((c, i) => {
+    const x = M + i * (scw + 0.44)
+    card(s, x, 5.16, scw, 1.16, i === 0 ? 'teal' : 'plain')
+    s.addText(c[0], {
+      x: x + 0.3, y: 5.28, w: scw - 0.6, h: 0.26,
+      fontFace: F, fontSize: 10.5, bold: true, color: C.faint, margin: 0, valign: 'middle',
     })
-    s.addText(k[1], {
-      x: x + 0.32, y: y + 0.52, w: cw - 0.64, h: 0.44,
-      fontFace: F, fontSize: 24, bold: true, color: C.teal, margin: 0, valign: 'middle',
+    s.addText(c[1], {
+      x: x + 0.3, y: 5.54, w: scw - 0.6, h: 0.42,
+      fontFace: F, fontSize: 23, bold: true, color: C.teal, margin: 0, valign: 'middle',
     })
-    s.addText(k[2], {
-      x: x + 0.32, y: y + 0.98, w: cw - 0.64, h: 0.3,
-      fontFace: F, fontSize: 10.5, color: C.muted, margin: 0, valign: 'middle',
+    s.addText(c[2], {
+      x: x + 0.3, y: 5.96, w: scw - 0.6, h: 0.28,
+      fontFace: F, fontSize: 9.5, color: C.muted, margin: 0, valign: 'middle',
     })
   })
 
-  card(s, M, 5.72, CW, 1.02, 'teal')
-  s.addText('구체적 개선 수치는 병원의 현재 운영 방식 · 환자 구성 · 기존 시스템 유무에 따라 편차가 큽니다. 사전 진단에서 귀 병원의 실제 데이터를 확인한 뒤 숫자로 약속 가능한 목표치를 별도 제안서에 명시합니다.\n검증되지 않은 일반화된 수치를 앞세우지 않는 것이 저희 원칙입니다.', {
-    x: M + 0.36, y: 5.86, w: CW - 0.72, h: 0.76,
-    fontFace: F, fontSize: 11.5, color: C.teal, margin: 0, valign: 'middle', lineSpacing: 18,
+  s.addText('예시 입력값은 가정치이며 특정 병원의 실적이 아닙니다. 노쇼율 · 진료 단가 · 콜 인입량은 병원마다 편차가 크므로, 사전 진단에서 실측치를 확인한 뒤 숫자로 약속 가능한 목표치만 별도 제안서에 명시합니다.', {
+    x: M, y: 6.46, w: CW - 0.9, h: 0.36,
+    fontFace: F, fontSize: 10.5, color: C.muted, margin: 0, valign: 'middle',
   })
 
   pageNum(s, 11)
-  s.addNotes('여기서 과장된 수치를 제시하지 않는 것이 오히려 신뢰를 얻는 지점입니다.')
+  s.addNotes('이 표의 핵심은 숫자가 아니라 산출식을 전부 공개한다는 점입니다. 병원이 자기 숫자를 넣어 직접 계산하게 하면, 우리가 제시한 수치를 방어할 필요가 없어집니다. 달성률 50%로 깎아둔 것도 같은 이유입니다.')
 }
 
 /* ===============================================================
-   12 — 도입 절차
+   12 — 성과 증명 방식
    =============================================================== */
 {
   const s = pres.addSlide()
   lightBg(s)
-  kicker(s, '일정')
-  heading(s, '도입 절차 — 표준 12주')
-  subheading(s, '코어가 이미 완성되어 있으므로, 기간의 대부분은 개발이 아니라 귀 병원의 진료 규칙을 시스템에 반영하는 작업에 쓰입니다.')
+  kicker(s, '성과')
+  heading(s, '성과를 증명하는 방식')
+  subheading(s, '도입 첫 달을 기준선으로 고정하고, 같은 지표를 같은 방식으로 매 분기 측정해 리포트로 제출합니다.', { h: 0.6 })
 
-  const phases = [
-    ['01', '1 – 2주차', '진단 & 요건 확정', '현행 예약 · 상담 프로세스 관찰, 스케줄 규칙 정리, EMR 환경 확인, 기준 지표 측정'],
-    ['02', '3 – 5주차', '코어 구축 & 맞춤 설정', '전용 인스턴스 생성, 의료진 · 슬롯 규칙 설정, 브랜드 디자인 적용, 도메인 연결'],
-    ['03', '5 – 7주차', '알림톡 & 채널 연동', '카카오 채널 개설, 템플릿 등록 · 심사, 본인인증 연동, 발송 시나리오 검증'],
-    ['04', '6 – 9주차', 'AI 모듈 적용', '과거 예약 데이터 이관 후 예측 모델 기준선 학습, 우선순위 높은 모듈부터 순차 활성화'],
-    ['05', '9 – 10주차', '교육 & 병행 운영', '실사용자 교육, 기존 방식과 2주 병행 운영으로 리스크 제거, 현장 피드백 반영'],
-    ['06', '11 – 12주차', '정식 오픈 & 안정화', '전면 전환, 초기 2주 밀착 대응, 지표 리포트 체계 가동'],
+  const kpis = [
+    ['노쇼율', '예약 대비 미방문 비율. 리마인더 발송 전후를 같은 요일 · 시간대로 비교합니다.'],
+    ['셀프 예약 비중', '전체 예약 중 웹 · 카카오 경유 비율. 데스크 콜 부하와 직결됩니다.'],
+    ['슬롯 가동률', '개설 슬롯 대비 실제 진료 건수. 공실 슬롯의 대체 배정 건수를 함께 셉니다.'],
+    ['주기 재진입률', '판정 후 90일 내 재방문 비율. 리콜 대상군과 비대상군을 나눠 봅니다.'],
+    ['건당 처리 시간', '예약 1건을 데스크가 처리하는 데 걸리는 시간. 도입 전 실측치와 비교합니다.'],
+    ['변경 요청 처리', '환자 변경 · 취소 요청의 접수부터 확정까지 소요 시간과 누락 건수.'],
   ]
 
-  let y = 2.24
-  phases.forEach((p) => {
-    codeDot(s, M, y, p[0], { d: 0.44, fs: 11 })
-    s.addText(p[1], {
-      x: M + 0.66, y, w: 1.5, h: 0.44,
-      fontFace: F, fontSize: 11, bold: true, color: C.teal2, margin: 0, valign: 'middle',
+  const cw = (CW - 0.5 * 2) / 3
+  kpis.forEach((k, i) => {
+    const col = i % 3
+    const row = Math.floor(i / 3)
+    const x = M + col * (cw + 0.5)
+    const y = 2.36 + row * 1.9
+
+    s.addShape(pres.ShapeType.ellipse, { x, y, w: 0.34, h: 0.34, fill: { color: C.tealTint } })
+    s.addShape(pres.ShapeType.ellipse, { x: x + 0.115, y: y + 0.115, w: 0.11, h: 0.11, fill: { color: C.teal } })
+    s.addText(k[0], {
+      x: x + 0.5, y: y - 0.03, w: cw - 0.5, h: 0.4,
+      fontFace: F, fontSize: 14.5, bold: true, color: C.ink, margin: 0, valign: 'middle',
     })
-    s.addText(p[2], {
-      x: M + 2.24, y, w: 3.0, h: 0.44,
-      fontFace: F, fontSize: 14, bold: true, color: C.ink, margin: 0, valign: 'middle',
+    s.addText(k[1], {
+      x, y: y + 0.52, w: cw - 0.2, h: 1.1,
+      fontFace: F, fontSize: 11.5, color: C.muted, margin: 0, valign: 'top', lineSpacing: 18,
     })
-    s.addText(p[3], {
-      x: M + 5.4, y, w: CW - 5.4, h: 0.44,
-      fontFace: F, fontSize: 11.5, color: C.muted, margin: 0, valign: 'middle',
-    })
-    y += 0.72
+  })
+
+  card(s, M, 6.16, CW - 0.9, 0.62, 'teal')
+  s.addText('마리아병원의 노쇼율 · 콜 인입량 같은 실측 운영 수치는 병원의 자산이므로 공개하지 않습니다. 영업 자료에 다른 병원의 숫자를 쓰지 않는 것이 저희 원칙입니다.', {
+    x: M + 0.32, y: 6.16, w: CW - 1.54, h: 0.62,
+    fontFace: F, fontSize: 11, color: C.teal, margin: 0, valign: 'middle', lineSpacing: 16,
   })
 
   pageNum(s, 12)
+  s.addNotes('레퍼런스 병원의 숫자를 팔지 않는다는 점을 분명히 말씀드리는 슬라이드입니다. 듣는 쪽에서는 "그럼 우리 숫자도 안 팔겠구나"로 읽힙니다.')
 }
 
 /* ===============================================================
-   13 — 보안
+   13 — 도입 방안
+   =============================================================== */
+{
+  const s = pres.addSlide()
+  lightBg(s)
+  kicker(s, '도입')
+  heading(s, '도입 방안 — 표준 12주')
+  subheading(s, '코어가 이미 완성되어 있으므로 기간의 대부분은 개발이 아니라 귀 병원의 진료 규칙을 반영하는 작업에 쓰입니다. 병원에서 실제로 필요한 시간을 단계마다 적었습니다.', { h: 0.6 })
+
+  const cols = [
+    ['주차', M + 0.62, 1.3],
+    ['단계', M + 2.0, 2.5],
+    ['주요 작업', M + 4.6, 4.0],
+    ['병원 측 투입', M + 8.75, 3.34],
+  ]
+  cols.forEach((c) => {
+    s.addText(c[0], {
+      x: c[1], y: 2.26, w: c[2], h: 0.26,
+      fontFace: F, fontSize: 10, bold: true, color: C.faint, margin: 0, valign: 'middle',
+    })
+  })
+  s.addShape(pres.ShapeType.rect, { x: M, y: 2.54, w: CW, h: 0.02, fill: { color: C.ink } })
+
+  const phases = [
+    ['01', '1 – 2주차', '진단 & 요건 확정', '현행 프로세스 관찰, 스케줄 규칙 정리, EMR 환경 확인, 기준 지표 측정', '원무팀장 주 4시간 · 대표원장 60분'],
+    ['02', '3 – 5주차', '코어 구축 & 맞춤 설정', '전용 인스턴스 생성, 의료진 · 슬롯 규칙 설정, 브랜드 적용, 도메인 연결', '진료 시간표 확정본 · 검수 90분'],
+    ['03', '5 – 7주차', '알림톡 & 채널 연동', '카카오 채널 개설, 템플릿 등록 · 심사, 본인인증 연동, 발송 검증', '사업자등록증 · 문구 검수 1회'],
+    ['04', '6 – 9주차', 'AI 모듈 적용', '과거 예약 데이터 이관 후 예측 모델 기준선 학습, 순차 활성화', '최근 6개월 예약 이력 제공'],
+    ['05', '9 – 10주차', '교육 & 병행 운영', '실사용자 교육 후 기존 방식과 2주 병행 운영, 현장 피드백 반영', '데스크 전원 2시간 × 2회'],
+    ['06', '11 – 12주차', '정식 오픈 & 안정화', '전면 전환, 초기 2주 밀착 대응, 지표 리포트 체계 가동', '오픈 당일 원무팀 입회'],
+  ]
+
+  let y = 2.7
+  phases.forEach((p) => {
+    codeDot(s, M, y + 0.06, p[0], { d: 0.42, fs: 10.5 })
+    s.addText(p[1], {
+      x: M + 0.62, y, w: 1.3, h: 0.54,
+      fontFace: F, fontSize: 10.5, bold: true, color: C.teal2, margin: 0, valign: 'middle',
+    })
+    s.addText(p[2], {
+      x: M + 2.0, y, w: 2.5, h: 0.54,
+      fontFace: F, fontSize: 13, bold: true, color: C.ink, margin: 0, valign: 'middle',
+    })
+    s.addText(p[3], {
+      x: M + 4.6, y, w: 4.0, h: 0.54,
+      fontFace: F, fontSize: 10.5, color: C.muted, margin: 0, valign: 'middle', lineSpacing: 14,
+    })
+    s.addText(p[4], {
+      x: M + 8.75, y, w: 3.34, h: 0.54,
+      fontFace: F, fontSize: 10.5, color: C.brass, margin: 0, valign: 'middle', lineSpacing: 14,
+    })
+    y += 0.63
+  })
+
+  card(s, M, 6.3, CW - 0.9, 0.64, 'teal')
+  s.addText('병원 총 투입 12주 합계 약 40시간   ·   EMR 연계 없고 의료진 10인 이하면 8주로 단축   ·   2주 병행 운영 후 전환   ·   5주차 검수에서 위약금 없이 중단 가능', {
+    x: M + 0.3, y: 6.3, w: CW - 1.5, h: 0.64,
+    fontFace: F, fontSize: 10.5, bold: true, color: C.teal, margin: 0, valign: 'middle', lineSpacing: 14,
+  })
+
+  pageNum(s, 13)
+  s.addNotes('병원장이 가장 먼저 묻는 것은 "우리 직원이 얼마나 붙어야 하느냐"입니다. 40시간이라는 숫자를 먼저 드리면 그 다음 대화가 쉬워집니다. 5주차 무위약 중단 조항은 계약 문턱을 낮추는 장치입니다.')
+}
+
+/* ===============================================================
+   14 — 보안
    =============================================================== */
 {
   const s = pres.addSlide()
@@ -807,36 +925,36 @@ function lightBg(slide) {
     })
   })
 
-  pageNum(s, 13)
+  pageNum(s, 14)
 }
 
 /* ===============================================================
-   14 — 요금
+   15 — 요금
    =============================================================== */
 {
   const s = pres.addSlide()
   lightBg(s)
   kicker(s, '비용')
-  heading(s, '도입 방식과 비용')
-  subheading(s, '초기 구축비와 월 운영비로 구성합니다. 병원 규모(의료진 수 · 월 예약 건수)와 선택 모듈에 따라 조정되며, 아래는 협의 기준안입니다.')
+  heading(s, '월 구독료와 구축비')
+  subheading(s, '1회 구축비와 월 구독료로 구성합니다. 구간은 동시 진료 의료진 수로만 나뉘며, 월 예약 건수에 따른 추가 과금은 없습니다.')
 
   const plans = [
     {
-      name: '피움 Core', price: '구축비 + 월 운영비 · 협의',
-      who: '의료진 3인 이하 / 예약 시스템 첫 도입',
-      items: ['환자 예약 웹 & 데스크 관리자', '의료진 스케줄 & 변경 승인', '카카오 알림톡 7종', '기본 통계 대시보드'],
+      name: '피움 Core', price: '월 79만원', setup: '구축비 1,200만원 · 1회',
+      who: '의료진 3인 이하 · 예약 시스템 첫 도입',
+      items: ['환자 예약 웹 & 데스크 관리자', '의료진 스케줄 & 예외일 관리', '변경 · 취소 요청 승인 흐름', '카카오 알림톡 7종', '기본 통계 대시보드', '평일 09–18시 지원'],
       hl: false,
     },
     {
-      name: '피움 Smart', price: '구축비 + 월 운영비 · 협의',
-      who: '의료진 4–10인 / 노쇼와 콜 부하가 실제 비용인 병원',
-      items: ['피움 Core 전체 포함', 'AI 노쇼 예측 & 오버부킹', '24시간 AI 예약 상담', '주기 기반 자동 리콜', '이탈 예측 & 리텐션', '분기 지표 리포트'],
+      name: '피움 Smart', price: '월 169만원', setup: '구축비 2,400만원 · 1회',
+      who: '의료진 4–10인 · 노쇼와 콜 부하가 큰 병원',
+      items: ['피움 Core 전체 포함', 'AI 노쇼 예측 & 오버부킹', '24시간 AI 예약 상담', '주기 기반 자동 리콜', '이탈 예측 & 리텐션', '분기 성과 리포트', '평일 09–20시 · 토 오전'],
       hl: true,
     },
     {
-      name: '피움 Enterprise', price: '전체 별도 협의',
-      who: '다지점 운영 / EMR 연계 및 전용 요건',
-      items: ['피움 Smart 전체 포함', 'AI 모듈 8종 전체', 'EMR 연계 개발', '지점 통합 대시보드', '전용 기능 개발 & 전담 지원'],
+      name: '피움 Enterprise', price: '월 320만원~', setup: '구축비 4,000만원~ · 범위별 산정',
+      who: '의료진 11인 이상 · 다지점 또는 EMR 연계',
+      items: ['피움 Smart 전체 포함', 'AI 모듈 8종 전체', 'EMR 연계 개발', '지점 통합 대시보드', '전용 기능 개발', '전담 매니저 · 24시간 대응'],
       hl: false,
     },
   ]
@@ -844,43 +962,52 @@ function lightBg(slide) {
   const cw = (CW - 0.5 * 2) / 3
   plans.forEach((p, i) => {
     const x = M + i * (cw + 0.5)
-    card(s, x, 2.24, cw, 3.94, p.hl ? 'teal' : 'plain')
+    card(s, x, 2.2, cw, 4.06, p.hl ? 'teal' : 'plain')
 
     s.addText(p.name, {
-      x: x + 0.36, y: 2.46, w: cw - 0.72, h: 0.42,
-      fontFace: F, fontSize: 20, bold: true, color: p.hl ? C.teal : C.ink, margin: 0, valign: 'middle',
+      x: x + 0.34, y: 2.4, w: cw - 0.68, h: 0.38,
+      fontFace: F, fontSize: 18, bold: true, color: p.hl ? C.teal : C.ink, margin: 0, valign: 'middle',
     })
-    if (p.hl) chip(s, x + cw - 1.15, 2.54, 0.8, '권장', 'brass')
+    if (p.hl) chip(s, x + cw - 1.1, 2.46, 0.78, '권장', 'brass')
 
     s.addText(p.price, {
-      x: x + 0.36, y: 2.92, w: cw - 0.72, h: 0.3,
-      fontFace: F, fontSize: 12, bold: true, color: C.brass, margin: 0, valign: 'middle',
+      x: x + 0.34, y: 2.82, w: cw - 0.68, h: 0.46,
+      fontFace: F, fontSize: 26, bold: true, color: C.teal, margin: 0, valign: 'middle',
+    })
+    s.addText(p.setup, {
+      x: x + 0.34, y: 3.26, w: cw - 0.68, h: 0.28,
+      fontFace: F, fontSize: 11, bold: true, color: C.brass, margin: 0, valign: 'middle',
     })
     s.addText(p.who, {
-      x: x + 0.36, y: 3.24, w: cw - 0.72, h: 0.56,
-      fontFace: F, fontSize: 11, color: C.muted, margin: 0, valign: 'top', lineSpacing: 17,
+      x: x + 0.34, y: 3.56, w: cw - 0.68, h: 0.44,
+      fontFace: F, fontSize: 10.5, color: C.muted, margin: 0, valign: 'top', lineSpacing: 15,
     })
 
     s.addText(p.items.map((t, j) => ({
       text: t,
       options: { bullet: true, breakLine: j !== p.items.length - 1 },
     })), {
-      x: x + 0.36, y: 3.9, w: cw - 0.72, h: 2.1,
-      fontFace: F, fontSize: 11.5, color: C.ink2, margin: 0, valign: 'top',
-      paraSpaceAfter: 6,
+      x: x + 0.34, y: 4.08, w: cw - 0.68, h: 2.0,
+      fontFace: F, fontSize: 10.5, color: C.ink2, margin: 0, valign: 'top',
+      paraSpaceAfter: 4,
     })
   })
 
-  s.addText('카카오 알림톡 발송 단가와 본인인증 건당 비용 등 외부 서비스 실비는 별도이며 사용량 기준으로 청구됩니다. 협의 항목은 병원 규모 확인 후 확정 견적으로 대체됩니다.', {
-    x: M, y: 6.38, w: CW, h: 0.4,
-    fontFace: F, fontSize: 11, color: C.muted, margin: 0, valign: 'middle',
+  s.addText('실비 — 카카오 알림톡 건당 9원, 휴대폰 본인인증 건당 55원. 마진 없이 사용량 실비로 청구합니다 (월 예약 2,400건 기준 약 10만원).', {
+    x: M, y: 6.36, w: CW - 0.9, h: 0.26,
+    fontFace: F, fontSize: 10.5, color: C.ink2, margin: 0, valign: 'middle',
+  })
+  s.addText('계약 — 정식 오픈일로부터 12개월, 이후 월 단위 연장. 구독료는 오픈 다음 달부터 청구되며 구축 12주 동안은 발생하지 않습니다. 연 선납 시 10% 할인. 부가세 별도.', {
+    x: M, y: 6.62, w: CW - 0.9, h: 0.26,
+    fontFace: F, fontSize: 10.5, color: C.muted, margin: 0, valign: 'middle',
   })
 
-  pageNum(s, 14)
+  pageNum(s, 15)
+  s.addNotes('구간을 의료진 수로만 나눈 이유를 물으면: 예약 건수 종량제로 하면 병원이 쓸수록 비용이 오르는 구조가 되어, 도입 후 "많이 쓰면 손해"라는 인식이 생깁니다. 실비를 마진 없이 공개하는 것도 같은 맥락입니다.')
 }
 
 /* ===============================================================
-   15 — 다음 단계 (dark)
+   16 — 다음 단계 (dark)
    =============================================================== */
 {
   const s = pres.addSlide()
@@ -935,7 +1062,7 @@ function lightBg(slide) {
     })
   })
 
-  s.addText('피움 (Pium) · 난임 전문병원 AI 스마트 CRM · 사업 소개서 · Rev. 1.0', {
+  s.addText('피움 (Pium) · 난임 전문병원 AI 스마트 CRM · 사업 소개서 · Rev. 1.1', {
     x: M, y: 6.68, w: CW, h: 0.3,
     fontFace: F, fontSize: 10, color: '4E706D', margin: 0, valign: 'middle',
   })
