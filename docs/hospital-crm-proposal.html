@@ -381,7 +381,17 @@
   .plan { background: var(--surface); padding: 24px 20px 26px; display: grid; gap: 11px; align-content: start; }
   .plan.feature { background: var(--navy-wash); }
   .plan h3 { font-size: 17px; font-weight: 700; }
+  .price-setup {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .price-setup b { color: var(--navy-2); font-weight: 800; }
+  .price-setup span { font-weight: 500; color: var(--faint); font-size: 11.5px; margin-left: 4px; }
+
   .price-main {
+    margin-top: -6px;
     font-family: var(--serif);
     font-size: 25px;
     font-weight: 900;
@@ -391,8 +401,6 @@
     line-height: 1.2;
   }
   .price-main small { font-size: 13px; font-weight: 700; }
-  .price-sub { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: -6px; }
-  .price-sub b { color: var(--ink-2); font-weight: 700; }
   .plan .who { font-size: 13px; color: var(--muted); line-height: 1.6; }
   .plan ul {
     margin: 4px 0 0;
@@ -432,7 +440,7 @@
     background: var(--rule);
     border: 1px solid var(--rule);
   }
-  .payback div { background: var(--surface); padding: 18px 20px 20px; display: grid; gap: 5px; }
+  .payback > div { background: var(--surface); padding: 18px 20px 20px; display: grid; gap: 5px; }
   .payback .pv {
     font-family: var(--serif);
     white-space: nowrap;
@@ -445,6 +453,7 @@
   }
   .payback .pv small { font-size: 14px; font-weight: 700; }
   .payback .pl { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+  .payback .pl b { color: var(--ink-2); font-weight: 700; }
 
   .note {
     margin-top: 20px;
@@ -481,7 +490,7 @@
     background: var(--rule);
     border: 1px solid var(--rule);
   }
-  .contact div { background: var(--surface); padding: 16px 18px; }
+  .contact > div { background: var(--surface); padding: 16px 18px; }
   .contact dd { margin: 6px 0 0; font-size: 15px; font-weight: 600; }
 
   footer {
@@ -876,16 +885,16 @@
             <tr>
               <th scope="row">차감 — 월 비용</th>
               <td class="formula">구독료 + 발송 실비</td>
-              <td class="figure">&minus;52만원</td>
-              <td class="figure">&minus;201만원</td>
-              <td class="figure">&minus;382만원</td>
+              <td class="figure">&minus;62만원</td>
+              <td class="figure">&minus;261만원</td>
+              <td class="figure">&minus;482만원</td>
             </tr>
             <tr class="row-net">
               <th scope="row">월 순효과</th>
               <td class="formula">보수 반영 &minus; 월 비용</td>
-              <td class="figure">63만원</td>
-              <td class="figure">478만원</td>
-              <td class="figure">1,382만원</td>
+              <td class="figure">53만원</td>
+              <td class="figure">418만원</td>
+              <td class="figure">1,282만원</td>
             </tr>
           </tbody>
         </table>
@@ -893,19 +902,19 @@
 
       <div class="payback">
         <div>
-          <div class="label">의원 · 회수</div>
-          <div class="pv">약 8<small>개월</small></div>
-          <div class="pl">구축비 480만원 ÷ 월 순효과 63만원</div>
+          <div class="label">의원 · 월 순효과</div>
+          <div class="pv">53<small>만원</small></div>
+          <div class="pl">구축비 100만원을 <b>약 2개월</b>에 회수. 1년 누적 순증 536만원.</div>
         </div>
         <div>
-          <div class="label">중형병원 · 회수</div>
-          <div class="pv">약 6<small>개월</small></div>
-          <div class="pl">구축비 2,800만원 ÷ 월 순효과 478만원</div>
+          <div class="label">중형병원 · 월 순효과</div>
+          <div class="pv">418<small>만원</small></div>
+          <div class="pl">구축비 500만원을 <b>약 2개월</b>에 회수. 1년 누적 순증 4,516만원.</div>
         </div>
         <div>
-          <div class="label">종합병원 · 회수</div>
-          <div class="pv">약 3<small>개월</small></div>
-          <div class="pl">구축비 4,500만원 ÷ 월 순효과 1,382만원</div>
+          <div class="label">종합병원 · 월 순효과</div>
+          <div class="pv">1,282<small>만원</small></div>
+          <div class="pl">구축비 1,000만원을 <b>1개월 이내</b> 회수. 1년 누적 순증 1억 4,384만원.</div>
         </div>
       </div>
 
@@ -1086,16 +1095,18 @@
         <div class="label">비용</div>
         <h2>월 구독료와 구축비</h2>
         <p class="sub">
-          1회 구축비와 월 구독료로 구성합니다. 구간은 <strong>동시 진료 의료진 수</strong>로만 나뉘며,
-          월 예약 건수에 따른 추가 과금은 없습니다. 많이 쓸수록 비용이 오르는 구조를 만들지 않습니다.
+          <strong>구축비는 최소화하고 월 구독료로 나눠 받습니다.</strong>
+          도입 첫해에 목돈이 나가지 않도록 한 구조이고, 그 대신 최소 약정 기간을 둡니다.
+          구간은 동시 진료 의료진 수로만 나뉘며, 월 예약 건수에 따른 추가 과금은 없습니다 &mdash;
+          많이 쓸수록 비용이 오르는 구조를 만들지 않습니다.
         </p>
       </div>
 
       <div class="plans">
         <div class="plan">
           <h3>Lite</h3>
-          <div class="price-main">월 49<small>만원</small></div>
-          <div class="price-sub">구축비 <b>480만원</b> · 1회</div>
+          <div class="price-setup">구축 <b>100만원</b> <span>1회</span></div>
+          <div class="price-main">월 59<small>만원</small></div>
           <p class="who">의료진 1&ndash;2인 · 의원</p>
           <ul>
             <li>환자 예약 웹 &amp; 데스크 관리자</li>
@@ -1107,8 +1118,8 @@
         </div>
         <div class="plan">
           <h3>Core</h3>
-          <div class="price-main">월 89<small>만원</small></div>
-          <div class="price-sub">구축비 <b>1,500만원</b> · 1회</div>
+          <div class="price-setup">구축 <b>250만원</b> <span>1회</span></div>
+          <div class="price-main">월 119<small>만원</small></div>
           <p class="who">의료진 3&ndash;5인 · 중소 병원</p>
           <ul>
             <li>Lite 전체 포함</li>
@@ -1121,8 +1132,8 @@
         </div>
         <div class="plan feature">
           <h3>Smart <span class="tag accent">권장</span></h3>
-          <div class="price-main">월 189<small>만원</small></div>
-          <div class="price-sub">구축비 <b>2,800만원</b> · 1회</div>
+          <div class="price-setup">구축 <b>500만원</b> <span>1회</span></div>
+          <div class="price-main">월 249<small>만원</small></div>
           <p class="who">의료진 6&ndash;15인 · 노쇼와 콜 부하가 큰 병원</p>
           <ul>
             <li>Core 전체 포함</li>
@@ -1136,8 +1147,8 @@
         </div>
         <div class="plan">
           <h3>Enterprise</h3>
-          <div class="price-main">월 350<small>만원~</small></div>
-          <div class="price-sub">구축비 <b>4,500만원~</b> · 범위별 산정</div>
+          <div class="price-setup">구축 <b>1,000만원~</b> <span>범위별 산정</span></div>
+          <div class="price-main">월 450<small>만원~</small></div>
           <p class="who">의료진 16인 이상 · 다지점 또는 EMR 연계</p>
           <ul>
             <li>Smart 전체 포함</li>
@@ -1181,8 +1192,8 @@
 
       <div class="terms">
         <div class="term">
-          <dt class="label">계약 기간</dt>
-          <dd>정식 오픈일로부터 <b>12개월</b>. 이후 월 단위 자동 연장됩니다.</dd>
+          <dt class="label">최소 약정</dt>
+          <dd>정식 오픈일로부터 <b>24개월</b>. 구축비를 낮춘 대신 약정 기간을 둡니다. 이후 월 단위 자동 연장됩니다.</dd>
         </div>
         <div class="term">
           <dt class="label">구독료 개시</dt>
@@ -1190,7 +1201,7 @@
         </div>
         <div class="term">
           <dt class="label">연 선납 할인</dt>
-          <dd>12개월분 선납 시 구독료 <b>10% 할인</b>.</dd>
+          <dd>12개월분 선납 시 구독료 <b>10% 할인</b>. 24개월분은 <b>15%</b>.</dd>
         </div>
         <div class="term">
           <dt class="label">하자 보수</dt>
