@@ -1,0 +1,1825 @@
+<title>피움 (Pium) — 난임 전문병원 AI 스마트 CRM 소개서</title>
+
+<style>
+  /* ============================================================
+     TOKENS — light is the base; dark redefines tokens only
+     ============================================================ */
+  :root {
+    --ground:      #FBFAF7;
+    --surface:     #FFFFFF;
+    --surface-2:   #F4F3EE;
+    --ink:         #12191A;
+    --ink-2:       #354445;
+    --muted:       #5F6F70;
+    --faint:       #8C9A99;
+    --rule:        #E1E4DE;
+    --rule-strong: #C9CFC7;
+
+    --teal:        #0D5257;
+    --teal-2:      #2E8F87;
+    --teal-wash:   #EDF3F1;
+    --brass:       #8F6716;
+    --brass-wash:  #F6F0E1;
+
+    --good:        #2E6E4E;
+    --crit:        #9E3B32;
+
+    --shadow: 0 1px 2px rgba(18,25,26,.05), 0 8px 24px -16px rgba(18,25,26,.28);
+
+    --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+            "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+    --measure: 68ch;
+    --rail: 190px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0C1214;
+      --surface:     #131C1D;
+      --surface-2:   #182223;
+      --ink:         #E8EFEC;
+      --ink-2:       #C3D0CD;
+      --muted:       #94A5A3;
+      --faint:       #6E807E;
+      --rule:        #23302F;
+      --rule-strong: #33423F;
+
+      --teal:        #56BFB1;
+      --teal-2:      #3E9C92;
+      --teal-wash:   #142626;
+      --brass:       #D8AA55;
+      --brass-wash:  #241D0F;
+
+      --good:        #5CB287;
+      --crit:        #D8776C;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0C1214;
+    --surface:     #131C1D;
+    --surface-2:   #182223;
+    --ink:         #E8EFEC;
+    --ink-2:       #C3D0CD;
+    --muted:       #94A5A3;
+    --faint:       #6E807E;
+    --rule:        #23302F;
+    --rule-strong: #33423F;
+
+    --teal:        #56BFB1;
+    --teal-2:      #3E9C92;
+    --teal-wash:   #142626;
+    --brass:       #D8AA55;
+    --brass-wash:  #241D0F;
+
+    --good:        #5CB287;
+    --crit:        #D8776C;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+
+  /* ============================================================
+     BASE
+     ============================================================ */
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  a { color: var(--teal); text-underline-offset: 3px; }
+  a:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  h1, h2, h3, h4 { text-wrap: balance; margin: 0; letter-spacing: -.03em; line-height: 1.28; }
+
+  p { margin: 0; }
+
+  /* utility face */
+  .mono {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ============================================================
+     SHELL — spec-sheet: index rail + content column
+     ============================================================ */
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px 120px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+
+  .rail { display: none; }
+
+  @media (min-width: 1040px) {
+    .rail {
+      display: block;
+      position: sticky;
+      top: 40px;
+      padding-top: 8px;
+      border-top: 2px solid var(--ink);
+    }
+    .rail ol {
+      list-style: none;
+      margin: 0;
+      padding: 14px 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .rail a {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 13.5px;
+      line-height: 1.45;
+      transition: color .18s ease;
+    }
+    .rail a span:first-child {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: .08em;
+      color: var(--faint);
+      padding-top: 3px;
+    }
+    .rail a:hover { color: var(--ink); }
+    .rail a:hover span:first-child { color: var(--teal); }
+    .rail .rail-foot {
+      margin-top: 22px;
+      padding-top: 14px;
+      border-top: 1px solid var(--rule);
+      color: var(--faint);
+    }
+  }
+
+  /* ============================================================
+     MASTHEAD
+     ============================================================ */
+  .masthead {
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 68px;
+    padding: 30px 0 0;
+  }
+
+  .masthead-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 24px;
+    align-items: baseline;
+    justify-content: space-between;
+    color: var(--muted);
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .masthead-bar strong { color: var(--ink); font-weight: 700; }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .brand-mark {
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -.045em;
+    color: var(--teal);
+  }
+  .brand-tail { color: var(--muted); }
+
+  .brand-line {
+    margin-top: 22px;
+    font-size: clamp(15px, 2vw, 17px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--teal);
+  }
+
+  .hero { padding: 62px 0 54px; }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--teal);
+    margin-bottom: 26px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 22px;
+    height: 2px;
+    background: var(--teal);
+  }
+
+  .hero h1 {
+    font-size: clamp(32px, 5.6vw, 60px);
+    font-weight: 800;
+    letter-spacing: -.045em;
+    line-height: 1.18;
+    max-width: 17ch;
+  }
+
+  .hero h1 em {
+    font-style: normal;
+    color: var(--teal);
+  }
+
+  .hero-lede {
+    margin-top: 30px;
+    max-width: 56ch;
+    font-size: clamp(16px, 2.1vw, 19px);
+    color: var(--ink-2);
+    line-height: 1.85;
+  }
+
+  /* metric strip */
+  .metrics {
+    margin-top: 48px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    border-top: 2px solid var(--ink);
+    border-left: 1px solid var(--rule);
+  }
+  .metric {
+    padding: 18px 20px 20px;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .metric dt {
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .metric dd {
+    margin: 8px 0 0;
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -.04em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .metric dd small {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    color: var(--muted);
+    margin-left: 3px;
+  }
+
+  /* ============================================================
+     SECTIONS
+     ============================================================ */
+  section { padding: 74px 0 0; scroll-margin-top: 28px; }
+
+  .sec-head {
+    display: grid;
+    gap: 18px;
+    padding-bottom: 30px;
+    margin-bottom: 34px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .sec-head .tag {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--faint);
+  }
+  .sec-head .tag b {
+    color: var(--teal);
+    font-weight: 600;
+  }
+  .sec-head h2 {
+    font-size: clamp(25px, 3.6vw, 36px);
+    font-weight: 800;
+    max-width: 22ch;
+  }
+  .sec-head .sub {
+    color: var(--muted);
+    max-width: var(--measure);
+    font-size: 16px;
+  }
+
+  .prose { max-width: var(--measure); display: grid; gap: 20px; color: var(--ink-2); }
+  .prose strong { color: var(--ink); font-weight: 700; }
+
+  /* ============================================================
+     CYCLE TRACK — signature diagram
+     ============================================================ */
+  .cycle-wrap {
+    margin: 8px 0 0;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .cycle {
+    min-width: 780px;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    position: relative;
+    padding-top: 34px;
+  }
+  .cycle::before {
+    content: "";
+    position: absolute;
+    top: 41px;
+    left: 6%;
+    right: 6%;
+    height: 2px;
+    background: linear-gradient(to right, var(--teal), var(--teal-2));
+    opacity: .55;
+  }
+  .stage { position: relative; padding: 0 10px; text-align: center; }
+  .stage-day {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    color: var(--teal);
+    position: absolute;
+    top: -34px;
+    left: 0; right: 0;
+  }
+  .stage-dot {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--ground);
+    border: 2.5px solid var(--teal);
+    margin: 0 auto 16px;
+    position: relative;
+    z-index: 1;
+  }
+  .stage-dot.crit { border-color: var(--crit); }
+  .stage h4 { font-size: 15px; font-weight: 700; margin-bottom: 7px; }
+  .stage p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .stage .hook {
+    margin-top: 12px;
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--brass);
+    background: var(--brass-wash);
+    border: 1px solid color-mix(in srgb, var(--brass) 28%, transparent);
+    border-radius: 3px;
+    padding: 3px 7px;
+  }
+
+  .cycle-note {
+    margin-top: 26px;
+    padding: 18px 22px;
+    background: var(--teal-wash);
+    border-left: 3px solid var(--teal);
+    color: var(--ink-2);
+    font-size: 15px;
+    max-width: var(--measure);
+  }
+
+  /* ============================================================
+     PAIN LIST
+     ============================================================ */
+  .pains {
+    display: grid;
+    gap: 0;
+    margin-top: 40px;
+    border-top: 1px solid var(--rule);
+  }
+  .pain {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) minmax(0, .85fr);
+    gap: 12px 26px;
+    padding: 24px 4px;
+    border-bottom: 1px solid var(--rule);
+    align-items: start;
+  }
+  .pain-idx {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    padding-top: 4px;
+  }
+  .pain h4 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .pain p { font-size: 14.5px; color: var(--muted); line-height: 1.72; }
+  .pain-cost {
+    font-size: 14px;
+    color: var(--ink-2);
+    background: var(--surface-2);
+    border-radius: 4px;
+    padding: 12px 15px;
+    line-height: 1.65;
+  }
+  .pain-cost b {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+  @media (max-width: 720px) {
+    .pain { grid-template-columns: 26px minmax(0, 1fr); }
+    .pain-cost { grid-column: 2; }
+  }
+
+  /* ============================================================
+     BUILT / MODULE TABLES
+     ============================================================ */
+  .table-wrap { overflow-x: auto; margin-top: 6px; }
+  table {
+    width: 100%;
+    min-width: 640px;
+    border-collapse: collapse;
+    font-size: 14.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 14px 16px 14px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    line-height: 1.65;
+  }
+  thead th {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 500;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 10px;
+  }
+  tbody th {
+    font-weight: 700;
+    color: var(--ink);
+    width: 21%;
+    padding-right: 24px;
+  }
+  td { color: var(--ink-2); }
+  td.mid { color: var(--muted); }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .pill.live {
+    color: var(--good);
+    background: color-mix(in srgb, var(--good) 11%, transparent);
+    border: 1px solid color-mix(in srgb, var(--good) 30%, transparent);
+  }
+  .pill.new {
+    color: var(--brass);
+    background: var(--brass-wash);
+    border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
+  }
+
+  /* ============================================================
+     AI MODULE CARDS
+     ============================================================ */
+  .modules {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin-top: 8px;
+  }
+  .module {
+    background: var(--surface);
+    padding: 26px 24px 28px;
+    display: grid;
+    gap: 12px;
+    align-content: start;
+  }
+  .module-code {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    color: var(--brass);
+  }
+  .module h3 { font-size: 18px; font-weight: 800; }
+  .module p { font-size: 14.5px; color: var(--muted); line-height: 1.72; }
+  .module dl {
+    margin: 6px 0 0;
+    display: grid;
+    gap: 9px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    font-size: 13.5px;
+  }
+  .module dl div { display: grid; grid-template-columns: 62px 1fr; gap: 12px; }
+  .module dt {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-top: 4px;
+  }
+  .module dd { margin: 0; color: var(--ink-2); line-height: 1.6; }
+
+  /* ============================================================
+     ARCHITECTURE
+     ============================================================ */
+  .arch {
+    margin-top: 8px;
+    display: grid;
+    gap: 14px;
+  }
+  .arch-layer {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 20px;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--teal);
+    padding: 18px 20px;
+  }
+  .arch-layer.ai { border-left-color: var(--brass); }
+  .arch-layer > .mono { color: var(--muted); }
+  .arch-nodes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .node {
+    font-size: 13px;
+    padding: 5px 11px;
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .node.accent { color: var(--teal); border-color: color-mix(in srgb, var(--teal) 35%, transparent); background: var(--teal-wash); }
+  .node.ai { color: var(--brass); border-color: color-mix(in srgb, var(--brass) 32%, transparent); background: var(--brass-wash); }
+  @media (max-width: 720px) {
+    .arch-layer { grid-template-columns: 1fr; gap: 12px; }
+  }
+
+  /* ============================================================
+     PHASES — a genuine sequence, so it is numbered
+     ============================================================ */
+  .phases {
+    margin-top: 8px;
+    border-top: 2px solid var(--ink);
+  }
+  .phase {
+    display: grid;
+    grid-template-columns: 54px 168px minmax(0, 1fr);
+    gap: 24px;
+    padding: 22px 4px;
+    border-bottom: 1px solid var(--rule);
+    align-items: baseline;
+  }
+  .phase-n {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--teal);
+    letter-spacing: -.02em;
+  }
+  .phase-when {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .phase h4 { font-size: 16.5px; font-weight: 700; margin-bottom: 6px; }
+  .phase p { font-size: 14.5px; color: var(--muted); line-height: 1.7; }
+  @media (max-width: 720px) {
+    .phase { grid-template-columns: 40px minmax(0, 1fr); gap: 10px 16px; }
+    .phase-when { grid-column: 2; }
+    .phase > div:last-child { grid-column: 2; }
+  }
+
+  /* ============================================================
+     PLANS
+     ============================================================ */
+  .plans {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin-top: 8px;
+  }
+  .plan {
+    background: var(--surface);
+    padding: 28px 24px 30px;
+    display: grid;
+    gap: 14px;
+    align-content: start;
+  }
+  .plan.feature { background: var(--teal-wash); }
+  .plan h3 { font-size: 19px; font-weight: 800; }
+  .plan .price {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--teal);
+    font-variant-numeric: tabular-nums;
+  }
+  .plan ul {
+    margin: 6px 0 0;
+    padding: 14px 0 0;
+    border-top: 1px solid var(--rule);
+    list-style: none;
+    display: grid;
+    gap: 9px;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .plan li { display: grid; grid-template-columns: 15px 1fr; gap: 8px; line-height: 1.6; }
+  .plan li::before {
+    content: "";
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--teal);
+    margin-top: 9px;
+  }
+  .plan .who { font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+
+  /* ============================================================
+     KPI
+     ============================================================ */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(252px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin-top: 8px;
+  }
+  .kpi { background: var(--surface); padding: 22px 22px 24px; display: grid; gap: 8px; }
+  .kpi .label { font-size: 14px; font-weight: 700; }
+  .kpi .val {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -.04em;
+    color: var(--teal);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .kpi .how { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .disclaimer {
+    margin-top: 22px;
+    font-size: 13.5px;
+    color: var(--muted);
+    border-left: 2px solid var(--rule-strong);
+    padding-left: 16px;
+    max-width: var(--measure);
+    line-height: 1.7;
+  }
+
+  /* ============================================================
+     SECURITY GRID
+     ============================================================ */
+  .sec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 26px 34px;
+    margin-top: 8px;
+  }
+  .sec-item { display: grid; gap: 7px; align-content: start; }
+  .sec-item h4 { font-size: 15.5px; font-weight: 700; }
+  .sec-item p { font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+  /* ============================================================
+     CLOSING
+     ============================================================ */
+  .closing {
+    margin-top: 80px;
+    border-top: 2px solid var(--ink);
+    padding-top: 44px;
+    display: grid;
+    gap: 30px;
+  }
+  .closing h2 {
+    font-size: clamp(24px, 3.4vw, 34px);
+    font-weight: 800;
+    max-width: 20ch;
+  }
+  .closing .prose { font-size: 16px; }
+  .contact {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin-top: 6px;
+  }
+  .contact div { background: var(--surface); padding: 18px 20px; }
+  .contact dt {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 6px;
+  }
+  .contact dd { margin: 0; font-size: 15px; font-weight: 600; }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    color: var(--faint);
+    font-size: 13px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    justify-content: space-between;
+  }
+
+  /* editable placeholder */
+  .tbd {
+    color: var(--brass);
+    border-bottom: 1px dotted currentColor;
+    font-style: normal;
+  }
+
+  /* ============================================================
+     MOTION
+     ============================================================ */
+  /* ============================================================
+     ROI / PRICING / PHASE META
+     ============================================================ */
+  td.figure, th.figure {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  td.figure { font-weight: 700; color: var(--ink); }
+  td.formula { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+  tr.row-sum > * {
+    border-top: 2px solid var(--rule-strong);
+    font-weight: 700;
+    color: var(--ink);
+  }
+  tr.row-net > * {
+    background: var(--teal-wash);
+    color: var(--teal);
+    font-weight: 800;
+    border-bottom-color: var(--rule-strong);
+  }
+  tr.row-cost > * { color: var(--muted); }
+
+  .payback {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .payback-cell { background: var(--surface); padding: 20px 20px 22px; display: grid; gap: 6px; }
+  .payback-cell .pv {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -.04em;
+    color: var(--teal);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .payback-cell .pv small { font-size: 15px; font-weight: 700; }
+  .payback-cell .pl { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+  .phase-meta { margin-top: 12px; display: grid; gap: 7px; }
+  .phase-meta > div { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 12px; }
+  .phase-meta dt {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-top: 3px;
+  }
+  .phase-meta dd { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.6; }
+  @media (max-width: 620px) {
+    .phase-meta > div { grid-template-columns: 1fr; gap: 2px; }
+  }
+
+  .price-block { display: grid; gap: 4px; padding-bottom: 2px; }
+  .price-main {
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -.04em;
+    color: var(--teal);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+  .price-main small { font-size: 14px; font-weight: 700; letter-spacing: 0; }
+  .price-sub {
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .price-sub b { color: var(--ink-2); font-weight: 700; }
+
+  .terms {
+    margin-top: 26px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 18px 28px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+  }
+  .term { display: grid; gap: 5px; align-content: start; }
+  .term dt {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .term dd { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.6; }
+  .term dd b { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity .55s cubic-bezier(.22,.61,.36,1), transform .55s cubic-bezier(.22,.61,.36,1);
+  }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+    * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  }
+
+  @media print {
+    .rail { display: none; }
+    .layout { grid-template-columns: 1fr; }
+    .reveal { opacity: 1; transform: none; }
+    section { break-inside: avoid-page; }
+  }
+</style>
+
+<div class="shell">
+
+  <header class="masthead">
+    <div class="masthead-bar">
+      <div class="brand">
+        <span class="brand-mark">피움</span>
+        <span class="brand-tail mono">Pium · 난임 전문병원 AI 스마트 CRM</span>
+      </div>
+      <div class="mono num">사업 소개서 · 2026 · Rev. 1.1</div>
+    </div>
+
+    <div class="hero">
+      <div class="eyebrow mono">Reference: 마리아병원 예약 CRM 구축·납품</div>
+
+      <h1>난임 진료는 날짜가 아니라 <em>주기</em>로 움직입니다.</h1>
+
+      <p class="hero-lede">
+        일반 진료 예약 시스템은 “언제 오실 수 있나요”를 묻습니다.
+        난임 진료는 반대입니다 &mdash; 몸이 날짜를 정하고, 병원은 그 날짜에 자리를 만들어야 합니다.
+        저희는 국내 난임 분야 점유율 1위 <strong>마리아병원</strong>의 예약·CRM 시스템을 설계·구축해 실제 운영에 올렸습니다.
+        그 검증된 코어 위에 AI 레이어를 얹은 것이 <strong>피움</strong>입니다.
+      </p>
+
+      <p class="brand-line">한 주기도 놓치지 않게.</p>
+
+      <dl class="metrics">
+        <div class="metric">
+          <dt>실제 납품·운영</dt>
+          <dd>마리아병원</dd>
+        </div>
+        <div class="metric">
+          <dt>API 엔드포인트</dt>
+          <dd class="num">56<small>개</small></dd>
+        </div>
+        <div class="metric">
+          <dt>운영 화면</dt>
+          <dd class="num">25<small>개</small></dd>
+        </div>
+        <div class="metric">
+          <dt>알림톡 시나리오</dt>
+          <dd class="num">7<small>종</small></dd>
+        </div>
+        <div class="metric">
+          <dt>배포 리전</dt>
+          <dd>서울<small>ICN</small></dd>
+        </div>
+      </dl>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <nav class="rail" aria-label="목차">
+      <ol>
+        <li><a href="#s1"><span>01</span><span>왜 난임병원인가</span></a></li>
+        <li><a href="#s2"><span>02</span><span>이미 검증된 코어</span></a></li>
+        <li><a href="#s3"><span>03</span><span>AI 레이어</span></a></li>
+        <li><a href="#s4"><span>04</span><span>시스템 구성</span></a></li>
+        <li><a href="#s5"><span>05</span><span>성과와 회수 기간</span></a></li>
+        <li><a href="#s6"><span>06</span><span>도입 방안 12주</span></a></li>
+        <li><a href="#s7"><span>07</span><span>보안·컴플라이언스</span></a></li>
+        <li><a href="#s8"><span>08</span><span>월 구독료·구축비</span></a></li>
+        <li><a href="#s9"><span>09</span><span>다음 단계</span></a></li>
+      </ol>
+      <div class="rail-foot mono">피움 · Pium<br />난임 전문병원 전용 AI CRM</div>
+    </nav>
+
+    <main>
+
+      <!-- 01 ================================================== -->
+      <section id="s1" class="reveal">
+        <div class="sec-head">
+          <div class="tag mono"><b>01</b> — 배경</div>
+          <h2>난임 진료의 예약은 다른 진료과와 구조가 다릅니다</h2>
+          <p class="sub">
+            일반 외래는 “한 달 뒤 재진”이 가능하지만, 난임 진료는 환자의 생리주기가 일정을 결정합니다.
+            주기가 시작되면 <strong>2~3일 안에</strong> 내원해야 하고, 배란 모니터링은 <strong>하루 이틀 간격</strong>으로 반복됩니다.
+            이 구조 때문에 난임병원의 운영 부하는 다른 과와 전혀 다른 지점에서 발생합니다.
+          </p>
+        </div>
+
+        <div class="cycle-wrap">
+          <div class="cycle" role="img"
+               aria-label="난임 치료 한 주기의 흐름: 주기 시작(D1~D2), 기초 검사 및 과배란 유도(D3~D5), 배란 모니터링(D6~D12), 채취·시술(D13~D15), 이식(D16~D19), 판정(D25~D28). 각 단계마다 CRM 및 AI 접점이 붙습니다.">
+            <div class="stage">
+              <div class="stage-day">D1 – D2</div>
+              <div class="stage-dot"></div>
+              <h4>주기 시작</h4>
+              <p>환자가 당일 아침 전화로 “오늘 갈 수 있나요”를 묻는 지점</p>
+              <span class="hook">AI 리콜 예측</span>
+            </div>
+            <div class="stage">
+              <div class="stage-day">D3 – D5</div>
+              <div class="stage-dot"></div>
+              <h4>기초검사·과배란 유도</h4>
+              <p>검사·주사 일정이 한 번에 여러 건 잡히는 구간</p>
+              <span class="hook">자동 일괄 예약</span>
+            </div>
+            <div class="stage">
+              <div class="stage-day">D6 – D12</div>
+              <div class="stage-dot"></div>
+              <h4>배란 모니터링</h4>
+              <p>1~2일 간격 반복 내원, 예약 변경이 가장 잦음</p>
+              <span class="hook">동적 슬롯 재배치</span>
+            </div>
+            <div class="stage">
+              <div class="stage-day">D13 – D15</div>
+              <div class="stage-dot crit"></div>
+              <h4>채취·시술</h4>
+              <p>의료진·시술실 자원이 묶이는 고비용 슬롯</p>
+              <span class="hook">노쇼 예측 우선</span>
+            </div>
+            <div class="stage">
+              <div class="stage-day">D16 – D19</div>
+              <div class="stage-dot"></div>
+              <h4>이식</h4>
+              <p>일정 변동 시 주기 전체가 영향을 받음</p>
+              <span class="hook">변경 승인 워크플로</span>
+            </div>
+            <div class="stage">
+              <div class="stage-day">D25 – D28</div>
+              <div class="stage-dot"></div>
+              <h4>판정</h4>
+              <p>결과에 따라 다음 주기 재진입 또는 이탈이 갈림</p>
+              <span class="hook">이탈 예측·리텐션</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="cycle-note">
+          한 주기에 환자는 평균 <strong>5~8회 내원</strong>하고, 그때마다 예약·변경·확인 커뮤니케이션이 발생합니다.
+          일반 예약 시스템은 이 반복을 “새 예약 6건”으로 처리하지만, 난임 CRM은 <strong>하나의 주기</strong>로 다뤄야 합니다.
+        </p>
+
+        <div class="pains">
+          <div class="pain">
+            <div class="pain-idx num">P1</div>
+            <div>
+              <h4>아침 전화 폭주와 콜 병목</h4>
+              <p>주기가 시작된 환자들이 같은 시간대에 몰려 전화합니다. 데스크 인력은 늘릴 수 없고, 연결되지 않은 환자는 그대로 이탈 위험군이 됩니다.</p>
+            </div>
+            <div class="pain-cost"><b>운영 비용</b>데스크 업무의 상당 비중이 예약 접수·변경 통화에 소진됩니다.</div>
+          </div>
+          <div class="pain">
+            <div class="pain-idx num">P2</div>
+            <div>
+              <h4>노쇼와 당일 취소로 인한 시술 슬롯 손실</h4>
+              <p>채취·이식 슬롯은 의료진과 시술실이 함께 묶이는 고단가 자원입니다. 한 건의 노쇼가 그날 전체 스케줄의 공백으로 남습니다.</p>
+            </div>
+            <div class="pain-cost"><b>수익 손실</b>대체 환자를 즉시 채우지 못하면 회복 불가능한 매출입니다.</div>
+          </div>
+          <div class="pain">
+            <div class="pain-idx num">P3</div>
+            <div>
+              <h4>의료진 스케줄 변동의 파급</h4>
+              <p>시술·채란·학회 일정으로 진료 시간이 자주 바뀝니다. 변경 한 번에 수십 건의 예약을 손으로 재배치하고 일일이 연락해야 합니다.</p>
+            </div>
+            <div class="pain-cost"><b>운영 리스크</b>수기 재배치 과정에서 누락·중복 예약이 발생합니다.</div>
+          </div>
+          <div class="pain">
+            <div class="pain-idx num">P4</div>
+            <div>
+              <h4>주기 중단 환자의 조용한 이탈</h4>
+              <p>실패 판정 후 다음 주기로 돌아오지 않는 환자는 아무 신호 없이 사라집니다. 재방문 시점을 놓치면 그대로 타 병원으로 갑니다.</p>
+            </div>
+            <div class="pain-cost"><b>LTV 손실</b>난임 환자 1인의 생애가치는 재방문 주기 수에 비례합니다.</div>
+          </div>
+          <div class="pain">
+            <div class="pain-idx num">P5</div>
+            <div>
+              <h4>EMR과 예약 시스템의 이중 입력</h4>
+              <p>예약은 예약대로, 차트는 차트대로 따로 입력됩니다. 옮겨 적는 과정에서 누락이 생기고, 통계는 매번 수기로 집계됩니다.</p>
+            </div>
+            <div class="pain-cost"><b>데이터 신뢰도</b>지표가 실시간이 아니라 “월말에 세어본 숫자”가 됩니다.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 02 ================================================== -->
+      <section id="s2" class="reveal">
+        <div class="sec-head">
+          <div class="tag mono"><b>02</b> — 레퍼런스</div>
+          <h2>제안이 아니라, 이미 병원에서 돌아가고 있는 시스템입니다</h2>
+          <p class="sub">
+            아래는 마리아병원에 구축·납품하여 실제 운영 중인 기능입니다.
+            개념 검증이나 데모가 아니라, 환자·데스크·의료진이 매일 사용하는 화면과 API로 구현되어 있습니다.
+            이 코어가 곧 <strong>피움의 시작점</strong>이며, 신규 병원 도입 시 그대로 제공됩니다.
+          </p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">영역</th>
+                <th scope="col">구현 내용</th>
+                <th scope="col">상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">환자용 예약 웹</th>
+                <td>카카오 로그인 &amp; 휴대폰 본인인증, 의사별 예약, 가능 날짜 캘린더, 예약 조회·변경·취소, 진료 이력, 이용안내 &mdash; 모바일 우선 설계</td>
+                <td><span class="pill live">운영 중</span></td>
+              </tr>
+              <tr>
+                <th scope="row">데스크 관리자</th>
+                <td>실시간 대시보드, 예약 관리·대리 등록, 환자 관리, 당일 예약 현황, 전날 변경사항 브리핑, 기간별 통계(예약/완료/취소/노쇼)</td>
+                <td><span class="pill live">운영 중</span></td>
+              </tr>
+              <tr>
+                <th scope="row">의료진 스케줄</th>
+                <td>의사별 요일 템플릿, 휴진·특별 스케줄 예외, 시술시간 차단, <strong>시간대별 예약 인원 설정</strong>, 타임라인 뷰</td>
+                <td><span class="pill live">운영 중</span></td>
+              </tr>
+              <tr>
+                <th scope="row">변경 요청 워크플로</th>
+                <td>의료진이 일정 변경·취소·휴진을 요청하면 관리자가 승인/반려 &mdash; 처리 이력과 사유가 남는 결재 구조</td>
+                <td><span class="pill live">운영 중</span></td>
+              </tr>
+              <tr>
+                <th scope="row">카카오 알림톡</th>
+                <td>예약 확정·취소·거절·변경, 1일 전 리마인더, 당일 리마인더, 상태 변경 &mdash; 7종 시나리오 및 발송 로그·재발송 관리</td>
+                <td><span class="pill live">운영 중</span></td>
+              </tr>
+              <tr>
+                <th scope="row">EMR 등록 관리</th>
+                <td>예약 건별 EMR 반영 여부·시각·처리자 기록, 미등록 건 필터 &mdash; 이중 입력 누락 방지</td>
+                <td><span class="pill live">운영 중</span></td>
+              </tr>
+              <tr>
+                <th scope="row">운영 안정성</th>
+                <td>야간 배치로 향후 4주치 예약 가능 슬롯 사전 계산, 실시간 동기화, 예약 변경 횟수 제한, 감사 로그, 도메인 분리(환자/관리자)</td>
+                <td><span class="pill live">운영 중</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="disclaimer">
+          기술 구성: Next.js · TypeScript · PostgreSQL · Prisma, 서울(ICN) 리전 배포, 13개 데이터 모델과 조회 패턴별 인덱스 설계.
+          진료량이 많은 병원의 조회 부하를 전제로 슬롯 계산을 사전 배치화하여, 예약 화면이 진료 피크 시간에도 즉시 응답하도록 설계했습니다.
+        </p>
+      </section>
+
+      <!-- 03 ================================================== -->
+      <section id="s3" class="reveal">
+        <div class="sec-head">
+          <div class="tag mono"><b>03</b> — 제안</div>
+          <h2>검증된 코어 위에 올리는 AI 레이어 8종</h2>
+          <p class="sub">
+            AI를 새 기능으로 얹는 것이 아니라, 앞서 정리한 <strong>P1&ndash;P5의 병목 지점에 직접 붙입니다</strong>.
+            모든 모듈은 예약·진료 데이터가 쌓이는 기존 코어를 학습·판단 근거로 사용하므로, 별도 데이터 구축 없이 도입 즉시 동작을 시작합니다.
+          </p>
+        </div>
+
+        <div class="modules">
+          <article class="module">
+            <div class="module-code">AI-01 · 대응 P2</div>
+            <h3>노쇼 예측 &amp; 스마트 오버부킹</h3>
+            <p>예약 이력, 리드타임, 요일·시간대, 이전 취소 패턴, 주기 단계를 근거로 예약 건별 노쇼 확률을 산출합니다.</p>
+            <dl>
+              <div><dt>동작</dt><dd>고위험 예약에 추가 확인 알림톡을 자동 발송하고, 확률이 임계치를 넘으면 해당 슬롯에 대기 환자를 제안</dd></div>
+              <div><dt>효과</dt><dd>고단가 시술 슬롯의 공백 최소화</dd></div>
+            </dl>
+          </article>
+
+          <article class="module">
+            <div class="module-code">AI-02 · 대응 P1</div>
+            <h3>24시간 AI 예약 상담</h3>
+            <p>카카오 채널과 웹에서 자연어로 예약·변경·조회를 처리합니다. “이번 주기 시작했는데 내일 갈 수 있나요” 같은 문장을 실제 슬롯 조회로 연결합니다.</p>
+            <dl>
+              <div><dt>동작</dt><dd>기존 예약 API를 그대로 호출하므로 사람이 잡은 예약과 동일한 규칙·제한이 적용됨</dd></div>
+              <div><dt>효과</dt><dd>아침 전화 인입을 채널로 분산, 야간·휴일 접수 가능</dd></div>
+            </dl>
+          </article>
+
+          <article class="module">
+            <div class="module-code">AI-03 · 대응 P1, P4</div>
+            <h3>주기 기반 자동 리콜</h3>
+            <p>환자별 과거 주기 길이와 진료 단계를 학습해 다음 내원이 필요한 시점을 예측하고, 그 전날 선제적으로 안내합니다.</p>
+            <dl>
+              <div><dt>동작</dt><dd>“주기 시작하시면 2~3일 내 내원이 필요합니다” 알림 + 예약 링크를 개인별 예측 시점에 발송</dd></div>
+              <div><dt>효과</dt><dd>환자가 전화로 묻기 전에 병원이 먼저 도달</dd></div>
+            </dl>
+          </article>
+
+          <article class="module">
+            <div class="module-code">AI-04 · 대응 P4</div>
+            <h3>이탈 예측 &amp; 리텐션</h3>
+            <p>판정 이후 재방문이 끊긴 환자를 자동 식별하고, 이탈 위험도에 따라 접촉 우선순위를 매깁니다.</p>
+            <dl>
+              <div><dt>동작</dt><dd>위험군 리스트를 데스크에 전달, 상담 스크립트와 재방문 캠페인 메시지를 자동 생성</dd></div>
+              <div><dt>효과</dt><dd>조용히 사라지는 환자를 데이터로 붙잡음</dd></div>
+            </dl>
+          </article>
+
+          <article class="module">
+            <div class="module-code">AI-05 · 대응 P3</div>
+            <h3>스케줄 자동 재배치</h3>
+            <p>의료진 휴진·시술 일정이 등록되면 영향받는 예약을 자동 산출하고, 환자별 대체 슬롯 조합을 최적화해 제안합니다.</p>
+            <dl>
+              <div><dt>동작</dt><dd>관리자는 제안된 재배치안을 검토·승인만 하면 변경 알림톡까지 일괄 발송</dd></div>
+              <div><dt>효과</dt><dd>수기 재배치에서 발생하던 누락·중복 제거</dd></div>
+            </dl>
+          </article>
+
+          <article class="module">
+            <div class="module-code">AI-06 · 대응 P1, P5</div>
+            <h3>상담 통화 자동 기록</h3>
+            <p>데스크 상담 통화를 음성 인식으로 텍스트화하고, 핵심 내용을 요약해 환자 카드에 자동 첨부합니다.</p>
+            <dl>
+              <div><dt>동작</dt><dd>요약 · 후속 조치 · 예약 변경 요청을 구조화하여 담당자에게 배정</dd></div>
+              <div><dt>효과</dt><dd>상담 내용이 담당자 기억이 아니라 시스템에 남음</dd></div>
+            </dl>
+          </article>
+
+          <article class="module">
+            <div class="module-code">AI-07 · 대응 P5</div>
+            <h3>AI 사전 문진</h3>
+            <p>내원 전 환자가 대화형으로 문진에 답하면, 진료 준비용 요약 노트를 자동 생성해 EMR 입력 초안으로 전달합니다.</p>
+            <dl>
+              <div><dt>동작</dt><dd>주기 정보·복약·이전 시술 이력을 구조화된 항목으로 정리</dd></div>
+              <div><dt>효과</dt><dd>진료 시간의 문진 비중 축소, 차트 입력 부담 경감</dd></div>
+            </dl>
+          </article>
+
+          <article class="module">
+            <div class="module-code">AI-08 · 대응 P5</div>
+            <h3>자연어 경영 대시보드</h3>
+            <p>“지난달 노쇼율이 가장 높은 시간대는?”처럼 물으면 즉시 집계와 차트로 답합니다.</p>
+            <dl>
+              <div><dt>동작</dt><dd>운영 데이터에 대한 질의를 안전한 읽기 전용 집계로 변환해 실행</dd></div>
+              <div><dt>효과</dt><dd>월말 수기 집계 없이 상시 의사결정 지표 확보</dd></div>
+            </dl>
+          </article>
+        </div>
+      </section>
+
+      <!-- 04 ================================================== -->
+      <section id="s4" class="reveal">
+        <div class="sec-head">
+          <div class="tag mono"><b>04</b> — 구성</div>
+          <h2>시스템 구성</h2>
+          <p class="sub">
+            피움은 병원별 독립 인스턴스로 구축합니다. 데이터베이스와 도메인이 병원마다 분리되므로 타 병원과 데이터가 섞이지 않습니다.
+          </p>
+        </div>
+
+        <div class="arch">
+          <div class="arch-layer">
+            <div class="mono">접점 / Channel</div>
+            <div class="arch-nodes">
+              <span class="node accent">환자 모바일 웹</span>
+              <span class="node accent">카카오 채널</span>
+              <span class="node">데스크 관리자</span>
+              <span class="node">의료진 화면</span>
+              <span class="node">경영 대시보드</span>
+            </div>
+          </div>
+          <div class="arch-layer ai">
+            <div class="mono">AI 레이어</div>
+            <div class="arch-nodes">
+              <span class="node ai">노쇼 예측</span>
+              <span class="node ai">예약 상담 에이전트</span>
+              <span class="node ai">주기 리콜 엔진</span>
+              <span class="node ai">이탈 예측</span>
+              <span class="node ai">스케줄 최적화</span>
+              <span class="node ai">통화 요약</span>
+              <span class="node ai">자연어 질의</span>
+            </div>
+          </div>
+          <div class="arch-layer">
+            <div class="mono">코어 / 검증됨</div>
+            <div class="arch-nodes">
+              <span class="node accent">예약 엔진</span>
+              <span class="node accent">슬롯 사전계산</span>
+              <span class="node accent">스케줄 관리</span>
+              <span class="node accent">환자 마스터</span>
+              <span class="node accent">승인 워크플로</span>
+              <span class="node accent">권한·감사 로그</span>
+            </div>
+          </div>
+          <div class="arch-layer">
+            <div class="mono">연동 / Integration</div>
+            <div class="arch-nodes">
+              <span class="node">카카오 알림톡</span>
+              <span class="node">본인인증</span>
+              <span class="node">EMR 연계</span>
+              <span class="node">결제 (선택)</span>
+            </div>
+          </div>
+          <div class="arch-layer">
+            <div class="mono">기반 / Platform</div>
+            <div class="arch-nodes">
+              <span class="node">PostgreSQL</span>
+              <span class="node">Next.js · TypeScript</span>
+              <span class="node">서울 리전 배포</span>
+              <span class="node">일일 백업</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="disclaimer">
+          EMR 연계는 병원이 사용하는 솔루션과 개방된 인터페이스에 따라 범위가 달라집니다.
+          표준 연동이 불가한 환경에서는 마리아병원과 동일하게 <strong>EMR 등록 상태 관리 방식</strong>(예약 건별 반영 여부·처리자 기록)으로 이중 입력 누락을 통제합니다.
+        </p>
+      </section>
+
+      <!-- 05 ================================================== -->
+      <section id="s5" class="reveal">
+        <div class="sec-head">
+          <div class="tag mono"><b>05</b> &mdash; 성과</div>
+          <h2>도입 후 성과를 어떻게 만들고, 어떻게 증명하는가</h2>
+          <p class="sub">
+            먼저 마리아병원에서 무엇을 실제로 구축해 운영 중인지 밝히고,
+            그 구조가 귀 병원에서 어떤 금액으로 환산되는지 산출식으로 보여드립니다.
+          </p>
+        </div>
+
+        <h3 style="font-size:17px;font-weight:800;margin-bottom:14px;">레퍼런스 &mdash; 마리아병원에서 운영 중인 범위</h3>
+        <div class="sec-grid">
+          <div class="sec-item">
+            <h4>주기 기반 재진 예약</h4>
+            <p>D1 주기 시작부터 과배란&middot;배란 모니터링&middot;채취&middot;이식&middot;판정까지, 진료 단계별로 다른 예약 규칙을 적용합니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>다지점 운영</h4>
+            <p>본원과 일산&middot;평촌 지점이 각각의 의료진 스케줄과 예외일 규칙으로 동시에 운영되고 있습니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>카카오 알림톡 7종</h4>
+            <p>예약 확정&middot;변경&middot;취소&middot;리마인더&middot;대기 알림 등 7개 시나리오가 자동 발송됩니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>의료진 스케줄 관리</h4>
+            <p>요일별 템플릿, 예외일(휴진&middot;단축&middot;시간대 차단), 슬롯별 정원 설정을 데스크가 직접 운영합니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>슬롯 사전 계산</h4>
+            <p>4주치 예약 가능 슬롯을 야간 배치로 미리 계산해, 달력 조회가 예약 건수와 무관하게 일정한 속도를 유지합니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>변경 요청 승인 흐름</h4>
+            <p>환자의 변경&middot;취소 요청이 데스크 승인 절차를 거쳐 반영되며, 모든 이력이 기록으로 남습니다.</p>
+          </div>
+        </div>
+
+        <p class="disclaimer" style="margin-top:22px;">
+          마리아병원의 노쇼율&middot;콜 인입량 같은 <strong>실측 운영 수치는 병원의 자산이므로 공개하지 않습니다.</strong>
+          영업 자료에 남의 병원 숫자를 쓰지 않는 것이 저희 원칙입니다.
+          대신 아래에 산출 근거를 전부 열어두었으니, 귀 병원의 숫자를 넣어 직접 검증해 주십시오.
+        </p>
+
+        <h3 style="font-size:17px;font-weight:800;margin:44px 0 6px;">성과 산출 모델</h3>
+        <p class="sub" style="margin-bottom:16px;">
+          아래 예시는 <strong>의료진 6인 / 월 예약 2,400건</strong> 규모 병원을 가정한 계산입니다.
+          입력값은 모두 사전 진단에서 귀 병원의 실측치로 대체됩니다.
+        </p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">효과 항목</th>
+                <th scope="col">산출식</th>
+                <th scope="col">예시 입력값</th>
+                <th scope="col" class="figure">월 효과</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">노쇼 감소</th>
+                <td class="formula">예약수 &times; 노쇼율 &times; 감소율 &times; 건당 진료수익</td>
+                <td class="mid">2,400건 &times; 12% &times; 30% &times; 8만원</td>
+                <td class="figure">691만원</td>
+              </tr>
+              <tr>
+                <th scope="row">시술 슬롯 공실 회복</th>
+                <td class="formula">월 공실 슬롯 &times; 대체 배정률 &times; 슬롯 기여수익</td>
+                <td class="mid">40슬롯 &times; 30% &times; 25만원</td>
+                <td class="figure">300만원</td>
+              </tr>
+              <tr>
+                <th scope="row">데스크 콜 절감</th>
+                <td class="formula">월 콜수 &times; 셀프 전환율 &times; 콜당 처리시간 &times; 인건비</td>
+                <td class="mid">1,800콜 &times; 40% &times; 3분 &times; 2.2만원/h</td>
+                <td class="figure">79만원</td>
+              </tr>
+              <tr>
+                <th scope="row">주기 리콜 재진입</th>
+                <td class="formula">판정 후 미재방문 &times; 리콜 반응률 &times; 건당 수익</td>
+                <td class="mid">60명 &times; 15% &times; 8만원</td>
+                <td class="figure">72만원</td>
+              </tr>
+              <tr class="row-sum">
+                <th scope="row">합계 (이론치)</th>
+                <td class="formula">&mdash;</td>
+                <td class="mid">4개 항목 단순 합</td>
+                <td class="figure">1,142만원</td>
+              </tr>
+              <tr>
+                <th scope="row">보수 반영</th>
+                <td class="formula">합계 &times; 달성률 50%</td>
+                <td class="mid">현장 정착 편차를 감안한 할인</td>
+                <td class="figure">571만원</td>
+              </tr>
+              <tr class="row-cost">
+                <th scope="row">차감 &mdash; 월 구독료</th>
+                <td class="formula">피움 Smart 기준</td>
+                <td class="mid">의료진 4&ndash;10인 구간</td>
+                <td class="figure">&minus;169만원</td>
+              </tr>
+              <tr class="row-cost">
+                <th scope="row">차감 &mdash; 발송 실비</th>
+                <td class="formula">알림톡 건당 9원 &times; 발송량</td>
+                <td class="mid">예약 1건당 평균 4회 발송</td>
+                <td class="figure">&minus;9만원</td>
+              </tr>
+              <tr class="row-net">
+                <th scope="row">월 순효과</th>
+                <td class="formula">보수 반영 &minus; 월 비용</td>
+                <td class="mid">2개월차부터 반복 발생</td>
+                <td class="figure">393만원</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="payback">
+          <div class="payback-cell">
+            <div class="pv">약 6<small>개월</small></div>
+            <div class="pl">구축비 2,400만원 &divide; 월 순효과 393만원. 보수 시나리오 기준 투자 회수 시점입니다.</div>
+          </div>
+          <div class="payback-cell">
+            <div class="pv">4,716<small>만원</small></div>
+            <div class="pl">도입 1년 후 누적 순효과. 구축비를 차감하면 순증 2,316만원입니다.</div>
+          </div>
+          <div class="payback-cell">
+            <div class="pv">50<small>%</small></div>
+            <div class="pl">이론치 대비 적용한 달성률. 절반만 실현돼도 위 회수 기간이 성립하도록 잡았습니다.</div>
+          </div>
+        </div>
+
+        <h3 style="font-size:17px;font-weight:800;margin:44px 0 6px;">성과를 증명하는 방식</h3>
+        <p class="sub" style="margin-bottom:16px;">
+          도입 첫 달을 기준선으로 고정하고, 같은 지표를 같은 방식으로 매 분기 측정해 리포트로 제출합니다.
+        </p>
+        <div class="kpis">
+          <div class="kpi">
+            <div class="label">노쇼율</div>
+            <div class="val">추적</div>
+            <div class="how">예약 대비 미방문 비율. 리마인더 발송 전후를 같은 요일&middot;시간대로 비교합니다.</div>
+          </div>
+          <div class="kpi">
+            <div class="label">셀프 예약 비중</div>
+            <div class="val">추적</div>
+            <div class="how">전체 예약 중 웹&middot;카카오 경유 비율. 데스크 콜 부하와 직결됩니다.</div>
+          </div>
+          <div class="kpi">
+            <div class="label">슬롯 가동률</div>
+            <div class="val">추적</div>
+            <div class="how">개설 슬롯 대비 실제 진료 건수. 공실 슬롯의 대체 배정 건수를 함께 셉니다.</div>
+          </div>
+          <div class="kpi">
+            <div class="label">주기 재진입률</div>
+            <div class="val">추적</div>
+            <div class="how">판정 후 90일 내 재방문 비율. 리콜 발송 대상군과 비대상군을 나눠 봅니다.</div>
+          </div>
+          <div class="kpi">
+            <div class="label">건당 처리 시간</div>
+            <div class="val">추적</div>
+            <div class="how">예약 1건을 데스크가 처리하는 데 걸리는 시간. 도입 전 실측치와 비교합니다.</div>
+          </div>
+          <div class="kpi">
+            <div class="label">변경 요청 처리</div>
+            <div class="val">추적</div>
+            <div class="how">환자 변경&middot;취소 요청의 접수부터 확정까지 소요 시간과 누락 건수.</div>
+          </div>
+        </div>
+
+        <p class="disclaimer">
+          위 예시 입력값은 <strong>가정치이며 특정 병원의 실적이 아닙니다.</strong>
+          노쇼율&middot;진료 단가&middot;콜 인입량은 병원마다 편차가 크기 때문에, 이 표는 &lsquo;약속&rsquo;이 아니라
+          <strong>귀 병원 숫자를 대입해 검증하는 계산기</strong>로 쓰시는 것이 맞습니다.
+          사전 진단에서 실측치를 확인한 뒤, 숫자로 약속 가능한 목표치만 별도 제안서에 명시합니다.
+        </p>
+      </section>
+
+      <!-- 06 ================================================== -->
+      <section id="s6" class="reveal">
+        <div class="sec-head">
+          <div class="tag mono"><b>06</b> &mdash; 도입</div>
+          <h2>도입 방안 &mdash; 표준 12주</h2>
+          <p class="sub">
+            코어가 이미 완성되어 있으므로 기간의 대부분은 개발이 아니라
+            <strong>귀 병원의 진료 규칙을 시스템에 반영하는 작업</strong>에 쓰입니다.
+            단계마다 병원에서 필요한 시간과 그 결과로 손에 남는 산출물을 함께 적었습니다.
+          </p>
+        </div>
+
+        <div class="phases">
+          <div class="phase">
+            <div class="phase-n num">01</div>
+            <div class="phase-when">1 &ndash; 2주차</div>
+            <div>
+              <h4>진단 &amp; 요건 확정</h4>
+              <p>현행 예약&middot;상담 프로세스 관찰, 의료진 스케줄 규칙 정리, EMR 환경 확인, 기준 지표 측정</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>원무팀장 1인 &times; 주 4시간, 대표원장 1회 60분 인터뷰</dd></div>
+                <div><dt>산출물</dt><dd>현행 프로세스 진단서, 기준 지표 실측치, 요건 정의서</dd></div>
+              </div>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-n num">02</div>
+            <div class="phase-when">3 &ndash; 5주차</div>
+            <div>
+              <h4>코어 구축 &amp; 병원 맞춤 설정</h4>
+              <p>전용 인스턴스 생성, 의료진&middot;진료과&middot;슬롯 규칙 설정, 브랜드 디자인 적용, 도메인 연결</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>의료진별 진료 시간표 확정본 제공, 중간 검수 1회 90분</dd></div>
+                <div><dt>산출물</dt><dd>병원 전용 스테이징 환경, 스케줄 규칙 설정 완료본</dd></div>
+              </div>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-n num">03</div>
+            <div class="phase-when">5 &ndash; 7주차</div>
+            <div>
+              <h4>알림톡 &amp; 채널 연동</h4>
+              <p>카카오 채널 개설, 알림톡 템플릿 등록&middot;심사, 본인인증 연동, 발송 시나리오 검증</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>사업자등록증&middot;채널 명의 등록 협조, 발송 문구 검수 1회</dd></div>
+                <div><dt>산출물</dt><dd>알림톡 템플릿 7종 심사 통과, 발송 테스트 리포트</dd></div>
+              </div>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-n num">04</div>
+            <div class="phase-when">6 &ndash; 9주차</div>
+            <div>
+              <h4>AI 모듈 적용</h4>
+              <p>과거 예약 데이터 이관 후 예측 모델 기준선 학습, 우선순위 높은 모듈부터 순차 활성화</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>최근 6개월 이상 예약&middot;방문 이력 데이터 제공</dd></div>
+                <div><dt>산출물</dt><dd>노쇼 예측 기준선 모델, 모듈별 on/off 운영 스위치</dd></div>
+              </div>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-n num">05</div>
+            <div class="phase-when">9 &ndash; 10주차</div>
+            <div>
+              <h4>데스크 교육 &amp; 병행 운영</h4>
+              <p>실사용자 교육 후 기존 방식과 2주간 병행 운영해 전환 리스크를 제거하고 현장 피드백을 반영</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>데스크 전원 2시간 교육 &times; 2회, 2주 병행 입력</dd></div>
+                <div><dt>산출물</dt><dd>운영 매뉴얼, 교육 이수 확인, 피드백 반영 목록</dd></div>
+              </div>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-n num">06</div>
+            <div class="phase-when">11 &ndash; 12주차</div>
+            <div>
+              <h4>정식 오픈 &amp; 안정화</h4>
+              <p>전면 전환 후 초기 2주 밀착 대응, 지표 리포트 체계 가동</p>
+              <div class="phase-meta">
+                <div><dt>병원 투입</dt><dd>오픈 당일 원무팀 입회, 이후 상시 운영</dd></div>
+                <div><dt>산출물</dt><dd>운영 전환 완료, 기준선 지표 리포트 1호</dd></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="terms">
+          <div class="term">
+            <dt>병원 총 투입</dt>
+            <dd>12주 합계 <b>약 40시간</b>. 대부분 1&ndash;2주차 진단과 9&ndash;10주차 교육에 집중됩니다.</dd>
+          </div>
+          <div class="term">
+            <dt>단축 가능 조건</dt>
+            <dd>EMR 연계가 없고 의료진 10인 이하인 경우 <b>8주</b>까지 단축됩니다.</dd>
+          </div>
+          <div class="term">
+            <dt>병행 운영</dt>
+            <dd>기존 방식을 <b>2주간 함께</b> 돌린 뒤 전환하므로 오픈일에 예약이 멈추지 않습니다.</dd>
+          </div>
+          <div class="term">
+            <dt>중단 지점</dt>
+            <dd>5주차 검수에서 요건 불일치가 확인되면 <b>위약금 없이</b> 중단할 수 있습니다.</dd>
+          </div>
+        </div>
+      </section>
+
+      <!-- 07 ================================================== -->
+      <section id="s7" class="reveal">
+        <div class="sec-head">
+          <div class="tag mono"><b>07</b> — 신뢰</div>
+          <h2>보안 및 컴플라이언스</h2>
+          <p class="sub">
+            난임 진료 정보는 가장 민감한 개인정보에 속합니다. 기술적 조치와 운영 규칙을 함께 설계합니다.
+          </p>
+        </div>
+
+        <div class="sec-grid">
+          <div class="sec-item">
+            <h4>국내 리전 보관</h4>
+            <p>데이터베이스와 애플리케이션 모두 국내(서울) 리전에서 운영합니다. 환자 정보는 국외로 이전되지 않습니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>병원별 데이터 분리</h4>
+            <p>병원마다 독립 데이터베이스·독립 도메인으로 구축합니다. 타 병원과 데이터가 공유되는 구조가 아닙니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>접근 권한 &amp; 감사 로그</h4>
+            <p>관리자 역할 기반 권한 분리, 환자 정보 조회·변경 이력 기록. 누가 언제 무엇을 바꿨는지 추적 가능합니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>AI 학습 데이터 통제</h4>
+            <p>환자 데이터는 외부 모델의 학습에 사용되지 않습니다. AI 처리 시 식별정보는 최소화하여 전달합니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>본인인증 기반 접근</h4>
+            <p>환자 예약 조회는 휴대폰 본인인증 또는 카카오 인증을 거칩니다. 이름·생년월일만으로 타인 예약이 조회되지 않습니다.</p>
+          </div>
+          <div class="sec-item">
+            <h4>백업 &amp; 복구</h4>
+            <p>일일 자동 백업과 시점 복구를 운영하며, 장애 대응 절차와 연락 체계를 계약에 명시합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 08 ================================================== -->
+      <section id="s8" class="reveal">
+        <div class="sec-head">
+          <div class="tag mono"><b>08</b> &mdash; 비용</div>
+          <h2>월 구독료와 구축비</h2>
+          <p class="sub">
+            1회 구축비와 월 구독료로 구성합니다. 구간은 <strong>동시 진료 의료진 수</strong>로 나뉘며,
+            월 예약 건수에 따른 추가 과금은 없습니다.
+          </p>
+        </div>
+
+        <div class="plans">
+          <div class="plan">
+            <h3>피움 Core</h3>
+            <div class="price-block">
+              <div class="price-main">월 79<small>만원</small></div>
+              <div class="price-sub">구축비 <b>1,200만원</b> &middot; 1회</div>
+            </div>
+            <p class="who">의료진 3인 이하 &middot; 예약 시스템을 처음 도입하는 병원</p>
+            <ul>
+              <li>환자 예약 웹 &amp; 데스크 관리자</li>
+              <li>의료진 스케줄 &amp; 예외일 관리</li>
+              <li>변경&middot;취소 요청 승인 흐름</li>
+              <li>카카오 알림톡 7종</li>
+              <li>기본 통계 대시보드</li>
+              <li>평일 09&ndash;18시 지원</li>
+            </ul>
+          </div>
+          <div class="plan feature">
+            <h3>피움 Smart <span class="pill new">권장</span></h3>
+            <div class="price-block">
+              <div class="price-main">월 169<small>만원</small></div>
+              <div class="price-sub">구축비 <b>2,400만원</b> &middot; 1회</div>
+            </div>
+            <p class="who">의료진 4&ndash;10인 &middot; 노쇼와 콜 부하가 실제 비용이 되는 병원</p>
+            <ul>
+              <li>Core 전체 포함</li>
+              <li>AI 노쇼 예측 &amp; 오버부킹</li>
+              <li>24시간 AI 예약 상담</li>
+              <li>주기 기반 자동 리콜</li>
+              <li>이탈 예측 &amp; 리텐션 캠페인</li>
+              <li>분기 성과 리포트</li>
+              <li>평일 09&ndash;20시 &middot; 토 오전 지원</li>
+            </ul>
+          </div>
+          <div class="plan">
+            <h3>피움 Enterprise</h3>
+            <div class="price-block">
+              <div class="price-main">월 320<small>만원~</small></div>
+              <div class="price-sub">구축비 <b>4,000만원~</b> &middot; 범위에 따라 산정</div>
+            </div>
+            <p class="who">의료진 11인 이상 &middot; 다지점 운영 또는 EMR 연계가 필요한 병원</p>
+            <ul>
+              <li>Smart 전체 포함</li>
+              <li>AI 모듈 8종 전체</li>
+              <li>EMR 연계 개발</li>
+              <li>지점 통합 대시보드</li>
+              <li>전용 기능 개발</li>
+              <li>전담 매니저 &amp; 24시간 장애 대응</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3 style="font-size:17px;font-weight:800;margin:40px 0 6px;">실비 항목</h3>
+        <p class="sub" style="margin-bottom:14px;">
+          외부 서비스 비용은 마진 없이 <strong>사용량 실비로 청구</strong>합니다. 아래는 기준 단가입니다.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">항목</th>
+                <th scope="col">기준 단가</th>
+                <th scope="col">월 예약 2,400건 기준 예상액</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">카카오 알림톡</th>
+                <td>건당 9원</td>
+                <td class="mid">약 86,000원 &mdash; 예약 1건당 평균 4회 발송</td>
+              </tr>
+              <tr>
+                <th scope="row">휴대폰 본인인증</th>
+                <td>건당 55원</td>
+                <td class="mid">약 17,000원 &mdash; 신규 가입 건에만 발생</td>
+              </tr>
+              <tr>
+                <th scope="row">클라우드 인프라</th>
+                <td>구독료에 포함</td>
+                <td class="mid">별도 청구 없음 &mdash; Enterprise 전용 인프라는 별도</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="terms">
+          <div class="term">
+            <dt>계약 기간</dt>
+            <dd>정식 오픈일로부터 <b>12개월</b>. 이후 월 단위 자동 연장됩니다.</dd>
+          </div>
+          <div class="term">
+            <dt>연 선납 할인</dt>
+            <dd>12개월분 선납 시 구독료 <b>10% 할인</b>. Smart 기준 연 203만원 절감.</dd>
+          </div>
+          <div class="term">
+            <dt>하자 보수</dt>
+            <dd>오픈 후 <b>3개월</b> 무상. 구축 범위 내 결함은 기간 제한 없이 무상 수정합니다.</dd>
+          </div>
+          <div class="term">
+            <dt>구독료 개시</dt>
+            <dd><b>정식 오픈 다음 달부터</b> 청구합니다. 구축 기간 12주 동안은 발생하지 않습니다.</dd>
+          </div>
+          <div class="term">
+            <dt>플랜 변경</dt>
+            <dd>의료진 증원 시 상위 구간으로 <b>차액만</b> 조정. 하향도 가능합니다.</dd>
+          </div>
+          <div class="term">
+            <dt>데이터 소유권</dt>
+            <dd>모든 진료&middot;예약 데이터는 <b>병원 소유</b>입니다. 해지 시 전량 반출해 드립니다.</dd>
+          </div>
+        </div>
+
+        <p class="disclaimer">
+          위 금액은 <span class="tbd">표준 정가 기준</span>이며 부가세 별도입니다.
+          기존 시스템에서의 데이터 이관 범위, EMR 연계 대상, 요청하시는 전용 기능에 따라 조정될 수 있습니다.
+          사전 진단 후 <strong>확정 견적서</strong>로 대체해 드립니다.
+        </p>
+      </section>
+
+      <!-- 09 ================================================== -->
+      <section id="s9" class="closing reveal">
+        <div class="tag mono" style="color: var(--faint); display: flex; gap: 12px; align-items: center;">
+          <b style="color: var(--teal); font-weight: 600;">09</b> — 다음 단계
+        </div>
+        <h2>먼저 병원의 숫자를 보고 이야기하겠습니다</h2>
+        <div class="prose">
+          <p>
+            제안의 다음 단계는 계약이 아니라 <strong>진단</strong>입니다.
+            60분 방문 미팅에서 현재 예약·상담 프로세스와 최근 3개월 예약 데이터를 함께 확인하고,
+            노쇼율·전화 인입량·슬롯 공실률을 실제 숫자로 산출해 드립니다.
+          </p>
+          <p>
+            그 결과를 바탕으로 <strong>귀 병원 전용 제안서</strong>&mdash;개선 목표치, 적용 모듈, 확정 견적, 상세 일정&mdash;를 2주 내 제출합니다.
+            진단과 제안서 작성에는 비용이 발생하지 않습니다.
+          </p>
+        </div>
+
+        <dl class="contact">
+          <div>
+            <dt>회사</dt>
+            <dd><span class="tbd">회사명 입력</span></dd>
+          </div>
+          <div>
+            <dt>담당</dt>
+            <dd><span class="tbd">담당자 / 직함</span></dd>
+          </div>
+          <div>
+            <dt>연락처</dt>
+            <dd><span class="tbd">010-0000-0000</span></dd>
+          </div>
+          <div>
+            <dt>이메일</dt>
+            <dd><span class="tbd">contact@example.com</span></dd>
+          </div>
+        </dl>
+      </section>
+
+      <footer>
+        <div>피움 (Pium) · 난임 전문병원 AI 스마트 CRM · 사업 소개서</div>
+        <div class="mono num">Rev. 1.1 · 2026</div>
+      </footer>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var items = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window) ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      items.forEach(function (el) { el.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.06 });
+    items.forEach(function (el) { io.observe(el); });
+  })();
+</script>
